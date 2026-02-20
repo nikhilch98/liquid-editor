@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking Tester - Liquid Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 13px;
+            color: #999;
+        }
+
+        input[type="text"], input[type="number"] {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 14px;
+            width: 300px;
+        }
+
+        input[type="number"] {
+            width: 80px;
+        }
+
+        button {
+            background: #0a84ff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0070e0;
+        }
+
+        button:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #333;
+        }
+
+        button.secondary:hover {
+            background: #444;
+        }
+
+        .video-container {
+            position: relative;
+            display: inline-block;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        #video {
+            display: block;
+            max-width: 100%;
+            max-height: 70vh;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .playback-controls {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            align-items: center;
+        }
+
+        .timeline {
+            flex: 1;
+            height: 40px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .timeline-progress {
+            height: 100%;
+            background: rgba(10, 132, 255, 0.3);
+            border-radius: 6px;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .timeline-playhead {
+            position: absolute;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: #0a84ff;
+            border-radius: 2px;
+        }
+
+        .timeline-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: rgba(255, 100, 100, 0.5);
+        }
+
+        .time-display {
+            font-size: 14px;
+            font-family: monospace;
+            color: #999;
+            min-width: 120px;
+        }
+
+        .stats {
+            margin-top: 20px;
+            padding: 16px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+
+        .stats h3 {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 12px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #0a84ff;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #333;
+            border-radius: 12px;
+            margin-top: 12px;
+            overflow: hidden;
+            display: none;
+            position: relative;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0a84ff, #30d158);
+            width: 0%;
+            transition: width 0.3s;
+            border-radius: 12px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .person-list {
+            margin-top: 20px;
+        }
+
+        .person-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .person-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .person-info {
+            flex: 1;
+        }
+
+        .person-name {
+            font-weight: 500;
+        }
+
+        .person-frames {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .checkbox-label input {
+            width: 16px;
+            height: 16px;
+        }
+
+        .server-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #2a2a2a;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff3b30;
+        }
+
+        .status-dot.connected {
+            background: #30d158;
+        }
+
+        .error-message {
+            background: rgba(255, 59, 48, 0.2);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #ff6b6b;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tracking Tester</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Video Path:</label>
+                <input type="text" id="videoPath" placeholder="/path/to/video.mp4" value="/Users/nikhilchatragadda/Downloads/IMG_0583_264.mov">
+            </div>
+            <div class="control-group">
+                <label>Stride:</label>
+                <input type="number" id="stride" value="1" min="1" max="30">
+            </div>
+            <button id="analyzeBtn">Analyze</button>
+            <button id="analyzeCachedBtn" class="secondary">Analyze (Cached)</button>
+            <button id="retrackBtn" class="secondary">Re-track Only</button>
+            <button id="retrackSortBtn" class="secondary" style="background:#2a6e2a;">Re-track (SORT)</button>
+            <button id="loadLocalBtn" class="secondary">Load Local File</button>
+            <input type="file" id="fileInput" accept="video/*" style="display: none;">
+            <div class="server-status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Checking server...</span>
+            </div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-text" id="progressText">0%</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="video-container">
+            <video id="video" controls></video>
+            <canvas id="overlay"></canvas>
+        </div>
+
+        <div class="playback-controls">
+            <button id="playPauseBtn">Play</button>
+            <button id="prevFrameBtn" class="secondary">&lt; Frame</button>
+            <button id="nextFrameBtn" class="secondary">Frame &gt;</button>
+            <div class="timeline" id="timeline">
+                <div class="timeline-progress" id="timelineProgress"></div>
+                <div class="timeline-markers" id="timelineMarkers"></div>
+                <div class="timeline-playhead" id="timelinePlayhead"></div>
+            </div>
+            <div class="time-display" id="timeDisplay">0:00.00 / 0:00.00</div>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <h3>Tracking Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="statFrames">0</div>
+                    <div class="stat-label">Frames Analyzed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statPeople">0</div>
+                    <div class="stat-label">Unique Persons</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statDetections">0</div>
+                    <div class="stat-label">Total Detections</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="statFps">0</div>
+                    <div class="stat-label">Video FPS</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="person-list" id="personList"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const SERVER_URL = 'http://localhost:8090';
+
+        // State
+        let trackingData = null;
+        let currentFrameIndex = 0;
+        let videoLoaded = false;
+        let localVideoUrl = null;
+
+        // DOM Elements
+        const video = document.getElementById('video');
+        const overlay = document.getElementById('overlay');
+        const ctx = overlay.getContext('2d');
+        const videoPathInput = document.getElementById('videoPath');
+        const strideInput = document.getElementById('stride');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const analyzeCachedBtn = document.getElementById('analyzeCachedBtn');
+        const retrackBtn = document.getElementById('retrackBtn');
+        const retrackSortBtn = document.getElementById('retrackSortBtn');
+        const loadLocalBtn = document.getElementById('loadLocalBtn');
+        const fileInput = document.getElementById('fileInput');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const errorMessage = document.getElementById('errorMessage');
+        const progressText = document.getElementById('progressText');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const prevFrameBtn = document.getElementById('prevFrameBtn');
+        const nextFrameBtn = document.getElementById('nextFrameBtn');
+        const timeline = document.getElementById('timeline');
+        const timelineProgress = document.getElementById('timelineProgress');
+        const timelinePlayhead = document.getElementById('timelinePlayhead');
+        const timelineMarkers = document.getElementById('timelineMarkers');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const stats = document.getElementById('stats');
+        const personList = document.getElementById('personList');
+
+        // Colors for different persons
+        const PERSON_COLORS = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+        ];
+
+        // Check server status
+        async function checkServer() {
+            try {
+                const response = await fetch(`${SERVER_URL}/health`);
+                if (response.ok) {
+                    statusDot.classList.add('connected');
+                    statusText.textContent = 'Server connected';
+                    return true;
+                }
+            } catch (e) {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Server offline';
+            }
+            return false;
+        }
+
+        // Show error
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('visible');
+        }
+
+        // Hide error
+        function hideError() {
+            errorMessage.classList.remove('visible');
+        }
+
+        // Format time
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = (seconds % 60).toFixed(2);
+            return `${mins}:${secs.padStart(5, '0')}`;
+        }
+
+        // Load video for playback
+        function loadVideo(path) {
+            if (localVideoUrl) {
+                video.src = localVideoUrl;
+            } else if (path) {
+                // Use the server to serve the video file
+                video.src = `${SERVER_URL}/video?path=${path}`;
+            } else {
+                showError('No video path specified');
+                return;
+            }
+
+            video.load();
+            videoLoaded = true;
+        }
+
+        // Poll progress
+        let progressInterval = null;
+
+        async function pollProgress() {
+            try {
+                const response = await fetch(`${SERVER_URL}/progress`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const percent = Math.round(data.progress * 100);
+                    progressFill.style.width = `${percent}%`;
+                    progressText.textContent = `${percent}%`;
+                }
+            } catch (e) {
+                // Ignore polling errors
+            }
+        }
+
+        // Analyze video
+        async function analyzeVideo() {
+            const videoPath = videoPathInput.value.trim();
+            const stride = parseInt(strideInput.value) || 1;
+
+            if (!videoPath) {
+                showError('Please enter a video path');
+                return;
+            }
+
+            hideError();
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = 'Analyzing...';
+            progressBar.classList.add('active');
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+
+            // Start polling for progress
+            progressInterval = setInterval(pollProgress, 500);
+
+            try {
+                const response = await fetch(`${SERVER_URL}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoPath, stride })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Analysis failed');
+                }
+
+                trackingData = await response.json();
+                progressFill.style.width = '100%';
+                progressText.textContent = '100%';
+
+                // Update UI
+                updateStats();
+                updatePersonList();
+                updateTimelineMarkers();
+
+                // Load video for preview (either from local file or server)
+                loadVideo(videoPath);
+
+            } catch (e) {
+                showError(e.message);
+            } finally {
+                // Stop polling
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = 'Analyze';
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressText.textContent = '0%';
+                }, 1000);
+            }
+        }
+
+        // Update statistics display
+        function updateStats() {
+            if (!trackingData) return;
+
+            const uniquePersons = new Set();
+            let totalDetections = 0;
+
+            trackingData.frames.forEach(frame => {
+                frame.people.forEach(person => {
+                    uniquePersons.add(person.personIndex);
+                    totalDetections++;
+                });
+            });
+
+            document.getElementById('statFrames').textContent = trackingData.totalFrames;
+            document.getElementById('statPeople').textContent = uniquePersons.size;
+            document.getElementById('statDetections').textContent = totalDetections;
+            document.getElementById('statFps').textContent = trackingData.fps.toFixed(1);
+
+            stats.style.display = 'block';
+        }
+
+        // Update person list
+        function updatePersonList() {
+            if (!trackingData) return;
+
+            const persons = {};
+            trackingData.frames.forEach(frame => {
+                frame.people.forEach(person => {
+                    if (!persons[person.personIndex]) {
+                        persons[person.personIndex] = { count: 0, avgConfidence: 0 };
+                    }
+                    persons[person.personIndex].count++;
+                    persons[person.personIndex].avgConfidence += person.confidence;
+                });
+            });
+
+            personList.innerHTML = '<h3 style="margin-bottom: 12px; color: #999; font-size: 14px;">Tracked Persons</h3>';
+
+            Object.entries(persons).forEach(([id, data]) => {
+                const color = PERSON_COLORS[id % PERSON_COLORS.length];
+                const avgConf = (data.avgConfidence / data.count * 100).toFixed(1);
+
+                const item = document.createElement('div');
+                item.className = 'person-item';
+                item.innerHTML = `
+                    <div class="person-color" style="background: ${color}"></div>
+                    <div class="person-info">
+                        <div class="person-name">Person ${id}</div>
+                        <div class="person-frames">${data.count} frames, ${avgConf}% avg confidence</div>
+                    </div>
+                `;
+                personList.appendChild(item);
+            });
+        }
+
+        // Update timeline markers
+        function updateTimelineMarkers() {
+            if (!trackingData) return;
+
+            timelineMarkers.innerHTML = '';
+
+            // Add markers where new persons are detected
+            const seenPersons = new Set();
+            trackingData.frames.forEach(frame => {
+                frame.people.forEach(person => {
+                    if (!seenPersons.has(person.personIndex)) {
+                        seenPersons.add(person.personIndex);
+                        const position = frame.timestampMs / (trackingData.duration * 1000);
+                        const marker = document.createElement('div');
+                        marker.className = 'timeline-marker';
+                        marker.style.left = `${position * 100}%`;
+                        marker.style.background = PERSON_COLORS[person.personIndex % PERSON_COLORS.length];
+                        marker.title = `Person ${person.personIndex} first detected`;
+                        timelineMarkers.appendChild(marker);
+                    }
+                });
+            });
+        }
+
+        // Draw tracking boxes on current frame
+        function drawTrackingBoxes() {
+            if (!trackingData || !videoLoaded) return;
+
+            // Resize canvas to match video
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+            overlay.style.width = video.clientWidth + 'px';
+            overlay.style.height = video.clientHeight + 'px';
+
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+            // Find frame closest to current time
+            const currentTimeMs = video.currentTime * 1000;
+            let closestFrame = null;
+            let minDiff = Infinity;
+
+            trackingData.frames.forEach(frame => {
+                const diff = Math.abs(frame.timestampMs - currentTimeMs);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestFrame = frame;
+                }
+            });
+
+            if (!closestFrame || minDiff > 100) return; // Skip if too far from any tracked frame
+
+            // Skeleton bone connections (pairs of joint names)
+            const SKELETON_BONES = [
+                // Head
+                ['nose', 'leftEye'], ['nose', 'rightEye'],
+                ['leftEye', 'leftEar'], ['rightEye', 'rightEar'],
+                // Torso
+                ['leftShoulder', 'rightShoulder'],
+                ['leftShoulder', 'leftHip'], ['rightShoulder', 'rightHip'],
+                ['leftHip', 'rightHip'],
+                // Left arm
+                ['leftShoulder', 'leftElbow'], ['leftElbow', 'leftWrist'],
+                // Right arm
+                ['rightShoulder', 'rightElbow'], ['rightElbow', 'rightWrist'],
+                // Left leg
+                ['leftHip', 'leftKnee'], ['leftKnee', 'leftAnkle'],
+                // Right leg
+                ['rightHip', 'rightKnee'], ['rightKnee', 'rightAnkle'],
+                // Spine
+                ['nose', 'neck'], ['neck', 'root'],
+                ['neck', 'leftShoulder'], ['neck', 'rightShoulder'],
+                ['root', 'leftHip'], ['root', 'rightHip'],
+            ];
+
+            // Draw each person
+            closestFrame.people.forEach(person => {
+                const color = PERSON_COLORS[person.personIndex % PERSON_COLORS.length];
+                const bbox = person.boundingBox;
+
+                // Convert normalized coordinates to pixels
+                const x = (bbox.x - bbox.width / 2) * overlay.width;
+                const y = (bbox.y - bbox.height / 2) * overlay.height;
+                const w = bbox.width * overlay.width;
+                const h = bbox.height * overlay.height;
+
+                // Parse hex color to rgba
+                const r = parseInt(color.slice(1, 3), 16);
+                const g = parseInt(color.slice(3, 5), 16);
+                const b = parseInt(color.slice(5, 7), 16);
+
+                // --- Draw Skeleton ---
+                if (person.joints) {
+                    const joints = person.joints;
+
+                    // Draw bones (lines between connected joints)
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    SKELETON_BONES.forEach(([j1, j2]) => {
+                        const p1 = joints[j1];
+                        const p2 = joints[j2];
+                        if (p1 && p2 && p1.confidence > 0.1 && p2.confidence > 0.1) {
+                            const x1 = p1.x * overlay.width;
+                            const y1 = p1.y * overlay.height;
+                            const x2 = p2.x * overlay.width;
+                            const y2 = p2.y * overlay.height;
+
+                            // Bone line with glow
+                            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.9)`;
+                            ctx.shadowColor = color;
+                            ctx.shadowBlur = 4;
+                            ctx.beginPath();
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.stroke();
+                            ctx.shadowColor = 'transparent';
+                            ctx.shadowBlur = 0;
+                        }
+                    });
+
+                    // Draw joint dots
+                    Object.entries(joints).forEach(([name, joint]) => {
+                        if (joint.confidence > 0.1) {
+                            const jx = joint.x * overlay.width;
+                            const jy = joint.y * overlay.height;
+                            const dotRadius = name === 'nose' ? 5 : 4;
+
+                            ctx.beginPath();
+                            ctx.arc(jx, jy, dotRadius, 0, Math.PI * 2);
+                            ctx.fillStyle = '#fff';
+                            ctx.fill();
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                        }
+                    });
+                }
+
+                // Draw semi-transparent fill inside bounding box
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.15)`;
+                ctx.fillRect(x, y, w, h);
+
+                // Draw bounding box
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 4;
+                ctx.strokeRect(x, y, w, h);
+
+                // Draw corner accents
+                const cornerLen = Math.min(30, w * 0.18, h * 0.18);
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(x, y + cornerLen); ctx.lineTo(x, y); ctx.lineTo(x + cornerLen, y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x + w - cornerLen, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cornerLen);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, y + h - cornerLen); ctx.lineTo(x, y + h); ctx.lineTo(x + cornerLen, y + h);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x + w - cornerLen, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cornerLen);
+                ctx.stroke();
+
+                // --- Person annotation label (top of box) ---
+                const label = `Person ${person.personIndex}`;
+                const confPercent = (person.confidence * 100).toFixed(0);
+                const fullLabel = `${label}  ${confPercent}%`;
+                ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, sans-serif';
+                const textMetrics = ctx.measureText(fullLabel);
+                const labelPadding = 12;
+                const labelHeight = 36;
+                const labelWidth = textMetrics.width + labelPadding * 2;
+
+                // Position label above the box, clamped to canvas bounds
+                let labelX = x;
+                let labelY = y - labelHeight - 6;
+                if (labelY < 0) labelY = y + h + 6; // flip below if at top edge
+
+                // Label background with rounded corners
+                const radius = 8;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(labelX + radius, labelY);
+                ctx.lineTo(labelX + labelWidth - radius, labelY);
+                ctx.quadraticCurveTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + radius);
+                ctx.lineTo(labelX + labelWidth, labelY + labelHeight - radius);
+                ctx.quadraticCurveTo(labelX + labelWidth, labelY + labelHeight, labelX + labelWidth - radius, labelY + labelHeight);
+                ctx.lineTo(labelX + radius, labelY + labelHeight);
+                ctx.quadraticCurveTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - radius);
+                ctx.lineTo(labelX, labelY + radius);
+                ctx.quadraticCurveTo(labelX, labelY, labelX + radius, labelY);
+                ctx.closePath();
+                ctx.fill();
+
+                // Drop shadow for label
+                ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 2;
+                ctx.fill();
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetY = 0;
+
+                // Label text
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, sans-serif';
+                ctx.fillText(label, labelX + labelPadding, labelY + 26);
+
+                // Confidence portion in slightly smaller text
+                const labelTextWidth = ctx.measureText(label + '  ').width;
+                ctx.font = '18px -apple-system, BlinkMacSystemFont, sans-serif';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillText(`${confPercent}%`, labelX + labelPadding + labelTextWidth, labelY + 26);
+
+                // --- Person index badge (centered in box) ---
+                const badgeRadius = Math.min(36, w * 0.14, h * 0.10);
+                const badgeCenterX = x + w / 2;
+                const badgeCenterY = y + h / 2;
+
+                // Badge shadow
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(badgeCenterX, badgeCenterY, badgeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.75)`;
+                ctx.fill();
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${Math.max(20, Math.round(badgeRadius * 1.1))}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${person.personIndex}`, badgeCenterX, badgeCenterY);
+                ctx.textAlign = 'start';
+                ctx.textBaseline = 'alphabetic';
+            });
+        }
+
+        // Update time display
+        function updateTimeDisplay() {
+            if (!video.duration) return;
+            timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+
+            const progress = video.currentTime / video.duration;
+            timelineProgress.style.width = `${progress * 100}%`;
+            timelinePlayhead.style.left = `${progress * 100}%`;
+        }
+
+        // Analyze with caching (first time: slow detection + fast tracking, subsequent: instant from cache)
+        async function analyzeVideoCached() {
+            const videoPath = videoPathInput.value.trim();
+            const stride = parseInt(strideInput.value) || 1;
+
+            if (!videoPath) {
+                showError('Please enter a video path');
+                return;
+            }
+
+            hideError();
+            analyzeCachedBtn.disabled = true;
+            analyzeCachedBtn.textContent = 'Caching...';
+            progressBar.classList.add('active');
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+
+            progressInterval = setInterval(pollProgress, 500);
+
+            try {
+                const response = await fetch(`${SERVER_URL}/analyze-cached`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoPath, stride })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Analysis failed');
+                }
+
+                trackingData = await response.json();
+                progressFill.style.width = '100%';
+                progressText.textContent = '100%';
+
+                updateStats();
+                updatePersonList();
+                updateTimelineMarkers();
+                loadVideo(videoPath);
+
+            } catch (e) {
+                showError(e.message);
+            } finally {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                analyzeCachedBtn.disabled = false;
+                analyzeCachedBtn.textContent = 'Analyze (Cached)';
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressText.textContent = '0%';
+                }, 1000);
+            }
+        }
+
+        // Re-track only (instant - uses cached detections)
+        async function retrackVideo() {
+            const videoPath = videoPathInput.value.trim();
+            const stride = parseInt(strideInput.value) || 1;
+
+            if (!videoPath) {
+                showError('Please enter a video path');
+                return;
+            }
+
+            hideError();
+            retrackBtn.disabled = true;
+            retrackBtn.textContent = 'Re-tracking...';
+
+            try {
+                const response = await fetch(`${SERVER_URL}/retrack`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoPath, stride })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Re-track failed');
+                }
+
+                trackingData = await response.json();
+
+                updateStats();
+                updatePersonList();
+                updateTimelineMarkers();
+
+                // Load video and draw boxes
+                loadVideo(videoPath);
+                drawTrackingBoxes();
+
+            } catch (e) {
+                showError(e.message);
+            } finally {
+                retrackBtn.disabled = false;
+                retrackBtn.textContent = 'Re-track Only';
+            }
+        }
+
+        // Re-track using SORT (Kalman + Hungarian) on cached detections
+        async function retrackVideoSORT() {
+            const videoPath = videoPathInput.value.trim();
+            const stride = parseInt(strideInput.value) || 1;
+
+            if (!videoPath) {
+                showError('Please enter a video path');
+                return;
+            }
+
+            hideError();
+            retrackSortBtn.disabled = true;
+            retrackSortBtn.textContent = 'SORT Tracking...';
+
+            try {
+                const response = await fetch(`${SERVER_URL}/retrack-sort`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ videoPath, stride })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'SORT re-track failed');
+                }
+
+                trackingData = await response.json();
+
+                updateStats();
+                updatePersonList();
+                updateTimelineMarkers();
+
+                loadVideo(videoPath);
+                drawTrackingBoxes();
+
+            } catch (e) {
+                showError(e.message);
+            } finally {
+                retrackSortBtn.disabled = false;
+                retrackSortBtn.textContent = 'Re-track (SORT)';
+            }
+        }
+
+        // Event Listeners
+        analyzeBtn.addEventListener('click', analyzeVideo);
+        analyzeCachedBtn.addEventListener('click', analyzeVideoCached);
+        retrackBtn.addEventListener('click', retrackVideo);
+        retrackSortBtn.addEventListener('click', retrackVideoSORT);
+
+        loadLocalBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                localVideoUrl = URL.createObjectURL(file);
+                video.src = localVideoUrl;
+                video.load();
+                videoLoaded = true;
+
+                // Set a placeholder path (the actual path will be entered manually)
+                // On macOS, we can try to get a reasonable path suggestion
+                videoPathInput.placeholder = 'Enter the full path to: ' + file.name;
+            }
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                playPauseBtn.textContent = 'Pause';
+            } else {
+                video.pause();
+                playPauseBtn.textContent = 'Play';
+            }
+        });
+
+        prevFrameBtn.addEventListener('click', () => {
+            if (trackingData) {
+                video.currentTime = Math.max(0, video.currentTime - 1/trackingData.fps);
+            } else {
+                video.currentTime = Math.max(0, video.currentTime - 1/30);
+            }
+        });
+
+        nextFrameBtn.addEventListener('click', () => {
+            if (trackingData) {
+                video.currentTime = Math.min(video.duration, video.currentTime + 1/trackingData.fps);
+            } else {
+                video.currentTime = Math.min(video.duration, video.currentTime + 1/30);
+            }
+        });
+
+        timeline.addEventListener('click', (e) => {
+            const rect = timeline.getBoundingClientRect();
+            const position = (e.clientX - rect.left) / rect.width;
+            video.currentTime = position * video.duration;
+        });
+
+        video.addEventListener('timeupdate', () => {
+            updateTimeDisplay();
+            drawTrackingBoxes();
+        });
+
+        video.addEventListener('loadedmetadata', () => {
+            updateTimeDisplay();
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+        });
+
+        video.addEventListener('play', () => {
+            playPauseBtn.textContent = 'Pause';
+        });
+
+        video.addEventListener('pause', () => {
+            playPauseBtn.textContent = 'Play';
+        });
+
+        video.addEventListener('error', (e) => {
+            console.error('Video error:', video.error?.message);
+            if (video.error && !localVideoUrl) {
+                showError('Video streaming failed. Please use "Load Local File" to load the video directly.');
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    playPauseBtn.click();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    prevFrameBtn.click();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextFrameBtn.click();
+                    break;
+            }
+        });
+
+        // Initialize
+        checkServer();
+        setInterval(checkServer, 5000);
+    </script>
+</body>
+</html>

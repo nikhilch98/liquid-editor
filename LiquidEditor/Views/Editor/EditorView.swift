@@ -1,0 +1,692 @@
+// EditorView.swift
+// LiquidEditor
+//
+// Main editor interface. Combines video preview, timeline,
+// and context-sensitive toolbar into a full-screen editing experience.
+//
+// Layout (top to bottom):
+//   1. Navigation bar (close, project name + dropdown, more, 2K, export)
+//   2. Video preview (flexible, aspect-fit, with comparison + fullscreen triggers)
+//   3. Playback controls row (play/pause, time, keyframe, undo/redo)
+//   4. Timeline area OR inline tool panel
+//   5. Editor toolbar (tabs + tool buttons)
+
+import AVFoundation
+import SwiftUI
+
+// MARK: - EditorView
+
+/// The main editor screen.
+///
+/// Manages the overall layout and coordinates between the video preview,
+/// timeline, and toolbar sections. Uses `EditorViewModel` as the single
+/// source of truth for editor state.
+struct EditorView: View {
+
+    // MARK: - State
+
+    @State private var viewModel: EditorViewModel
+
+    /// Timeline view model for the timeline UI.
+    @State private var timelineViewModel: TimelineViewModel
+
+    /// Playback view model bridging the PlaybackEngine with the UI.
+    @State private var playbackViewModel: PlaybackViewModel
+
+    /// Auto-reframe engine for the auto-reframe panel.
+    @State private var autoReframeEngine = AutoReframeEngine()
+
+    /// Selected person indices for person selection sheet.
+    @State private var selectedPersonIndices: Set<Int> = []
+
+    /// Thumbnail image generated from the current video for export preview.
+    @State private var exportThumbnail: UIImage?
+
+    /// Dismiss action for navigation.
+    @Environment(\.dismiss) private var dismiss
+
+    // MARK: - Initialization
+
+    /// Creates an editor view for the given project.
+    ///
+    /// - Parameter project: The project to edit.
+    init(project: Project) {
+        let editorVM = EditorViewModel(project: project)
+        _viewModel = State(initialValue: editorVM)
+        _timelineViewModel = State(
+            initialValue: TimelineViewModel(
+                timeline: editorVM.timeline,
+                tracks: []
+            )
+        )
+        _playbackViewModel = State(initialValue: PlaybackViewModel())
+    }
+
+    // MARK: - Body
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Navigation bar
+                editorNavigationBar
+
+                if viewModel.isLoading {
+                    // Loading state
+                    loadingView
+                } else if let errorMessage = viewModel.errorMessage {
+                    // Error state
+                    errorView(message: errorMessage)
+                } else {
+                    // Video preview (takes available space)
+                    VideoPreviewView(
+                        player: viewModel.player,
+                        currentTime: viewModel.currentTime,
+                        isPlaying: viewModel.isPlaying,
+                        isTrackingActive: viewModel.isTrackingActive,
+                        trackingBoundingBoxes: viewModel.currentTrackingBoxes,
+                        isComparisonMode: viewModel.isComparisonMode,
+                        videoAspectRatio: currentVideoAspectRatio,
+                        onTogglePlayPause: { viewModel.togglePlayPause() },
+                        onToggleComparison: { viewModel.isComparisonMode.toggle() },
+                        onFullscreen: { viewModel.showFullscreenPreview = true }
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: previewHeight(for: geometry))
+                    .onChange(of: viewModel.currentTime) { _, newTime in
+                        let ms = Int(newTime / 1_000)
+                        Task { await viewModel.updateTrackingBoxes(for: ms) }
+                    }
+
+                    // Playback controls row (CapCut style)
+                    PlaybackControlsView(
+                        viewModel: playbackViewModel,
+                        editorViewModel: viewModel
+                    )
+
+                    // Timeline OR inline tool panel
+                    if viewModel.activePanel.isPresented {
+                        toolPanelInline
+                            .frame(maxWidth: .infinity)
+                            .frame(height: timelineHeight(for: geometry))
+                    } else {
+                        timelineContent
+                            .frame(maxWidth: .infinity)
+                            .frame(height: timelineHeight(for: geometry))
+                    }
+
+                    // Toolbar
+                    EditorToolbar(viewModel: viewModel, playbackViewModel: playbackViewModel)
+                }
+            }
+            .overlay {
+                // Hidden keyboard shortcut buttons
+                keyboardShortcutButtons
+            }
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(white: 0.12),
+                        Color(white: 0.08),
+                        Color.black
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .ignoresSafeArea(.container, edges: .bottom)
+        }
+        .overlay(alignment: .topLeading) {
+            if viewModel.showProjectSettingsDropdown {
+                projectSettingsDropdown
+            }
+        }
+        .navigationBarHidden(true)
+        .preferredColorScheme(.dark)
+        .statusBarHidden()
+        .sheet(isPresented: $viewModel.showExportSheet) {
+            exportSheet
+        }
+        .onChange(of: viewModel.showExportSheet) { _, isPresented in
+            if isPresented {
+                generateExportThumbnail()
+            }
+        }
+        .sheet(isPresented: $viewModel.showSettings) {
+            settingsSheet
+        }
+        .sheet(isPresented: $viewModel.isTrackDebugActive) {
+            TrackDebugSheet(
+                sessionId: viewModel.activeTrackingSessionId ?? "",
+                onClose: { viewModel.isTrackDebugActive = false }
+            )
+        }
+        .fullScreenCover(isPresented: $viewModel.showFullscreenPreview) {
+            FullscreenPreviewView(
+                totalDuration: viewModel.totalDuration,
+                player: viewModel.player
+            )
+        }
+    }
+
+    // MARK: - Keyboard Shortcuts
+
+    /// Hidden buttons that provide keyboard shortcut bindings for common editor actions.
+    private var keyboardShortcutButtons: some View {
+        Group {
+            Button("") { viewModel.togglePlayPause() }
+                .keyboardShortcut(.space, modifiers: [])
+
+            Button("") { viewModel.undo() }
+                .keyboardShortcut("z", modifiers: .command)
+
+            Button("") { viewModel.redo() }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+
+            Button("") { viewModel.splitAtPlayhead() }
+                .keyboardShortcut("b", modifiers: .command)
+
+            Button("") { viewModel.deleteSelected() }
+                .keyboardShortcut(.delete, modifiers: [])
+
+            Button("") { viewModel.showExportSheet = true }
+                .keyboardShortcut("e", modifiers: .command)
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .allowsHitTesting(false)
+    }
+
+    // MARK: - Navigation Bar
+
+    private var editorNavigationBar: some View {
+        HStack(spacing: 0) {
+                // Close button (X)
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 20, weight: .regular))
+                        .foregroundStyle(.white)
+                        .frame(width: LiquidSpacing.minTouchTarget, height: LiquidSpacing.minTouchTarget)
+                }
+                .accessibilityLabel("Close editor")
+
+                // Project name with dropdown chevron
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.showProjectSettingsDropdown.toggle()
+                    }
+                } label: {
+                    HStack(spacing: LiquidSpacing.xs) {
+                        Text(viewModel.project.name)
+                            .font(LiquidTypography.subheadline)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+
+                        Image(systemName: "chevron.down")
+                            .font(LiquidTypography.caption)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .rotationEffect(
+                                .degrees(viewModel.showProjectSettingsDropdown ? 180 : 0)
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Project settings for \(viewModel.project.name)")
+                .accessibilityHint("Opens project settings dropdown")
+
+                Spacer()
+
+                // More menu (ellipsis)
+                Button {
+                    viewModel.showSettings = true
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("More options")
+
+                // Resolution badge
+                Text("2K")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .accessibilityLabel("Resolution: 2K")
+
+                Spacer().frame(width: LiquidSpacing.md)
+
+                // Export button (white filled rounded rectangle)
+                Button {
+                    viewModel.showExportSheet = true
+                } label: {
+                    Text("Export")
+                        .font(LiquidTypography.footnoteSemibold)
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, LiquidSpacing.lg)
+                        .padding(.vertical, LiquidSpacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: LiquidSpacing.cornerSmall)
+                                .fill(.white)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Export video")
+                .accessibilityHint("Opens export settings")
+            }
+        .padding(.horizontal, LiquidSpacing.lg)
+        .padding(.vertical, LiquidSpacing.xs)
+        .background(.ultraThinMaterial)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Editor navigation bar")
+    }
+
+    // MARK: - Project Settings Dropdown
+
+    private var projectSettingsDropdown: some View {
+        ZStack(alignment: .topLeading) {
+            // Dismiss backdrop (tapping outside closes dropdown)
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.showProjectSettingsDropdown = false
+                    }
+                }
+                .ignoresSafeArea()
+
+            // Dropdown menu
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.showProjectSettingsDropdown = false
+                    }
+                    // Rename action placeholder
+                } label: {
+                    Label("Rename", systemImage: "pencil")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, LiquidSpacing.lg)
+                        .padding(.vertical, LiquidSpacing.md)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(Color.white.opacity(0.1))
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.showProjectSettingsDropdown = false
+                    }
+                    viewModel.showSettings = true
+                } label: {
+                    Label("Project Settings", systemImage: "gearshape")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, LiquidSpacing.lg)
+                        .padding(.vertical, LiquidSpacing.md)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(Color.white.opacity(0.1))
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.showProjectSettingsDropdown = false
+                    }
+                    // Duplicate action placeholder
+                } label: {
+                    Label("Duplicate", systemImage: "doc.on.doc")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, LiquidSpacing.lg)
+                        .padding(.vertical, LiquidSpacing.md)
+                }
+                .buttonStyle(.plain)
+            }
+            .foregroundStyle(.white)
+            .font(LiquidTypography.subheadline)
+            .frame(width: 200)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: LiquidSpacing.cornerMedium, style: .continuous))
+            .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+            .padding(.top, 48)
+            .padding(.leading, 44)
+            .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topLeading)))
+        }
+    }
+
+    // MARK: - Loading View
+
+    private var loadingView: some View {
+        VStack(spacing: LiquidSpacing.xl) {
+            Spacer()
+            ProgressView()
+                .controlSize(.large)
+                .tint(.white)
+            Text("Loading video...")
+                .font(LiquidTypography.subheadline)
+                .foregroundStyle(LiquidColors.textSecondary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Loading video")
+    }
+
+    // MARK: - Error View
+
+    private func errorView(message: String) -> some View {
+        VStack(spacing: LiquidSpacing.xl) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(LiquidColors.warning.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(LiquidColors.warning)
+            }
+            .accessibilityHidden(true)
+
+            Text("Could not load video")
+                .font(LiquidTypography.title3)
+                .foregroundStyle(.white)
+
+            Text(message)
+                .font(LiquidTypography.caption)
+                .foregroundStyle(LiquidColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, LiquidSpacing.xxxl)
+
+            HStack(spacing: LiquidSpacing.md) {
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Go Back")
+                        .font(LiquidTypography.subheadline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, LiquidSpacing.xl)
+                        .padding(.vertical, 10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Go back")
+                .accessibilityHint("Returns to the previous screen")
+
+                Button {
+                    viewModel.loadVideo()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 14))
+                        Text("Retry")
+                            .font(LiquidTypography.subheadlineSemibold)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, LiquidSpacing.xl)
+                    .padding(.vertical, 10)
+                    .background(Color.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Retry loading video")
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Error loading video: \(message)")
+    }
+
+    // MARK: - Timeline
+
+    private var timelineContent: some View {
+        Group {
+            if viewModel.timeline.isEmpty {
+                ZStack {
+                    RoundedRectangle(cornerRadius: LiquidSpacing.cornerSmall)
+                        .fill(Color.white.opacity(0.05))
+                        .padding(.horizontal, LiquidSpacing.sm)
+
+                    VStack(spacing: LiquidSpacing.sm) {
+                        Image(systemName: "film.stack")
+                            .font(.system(size: 28))
+                            .foregroundStyle(LiquidColors.textSecondary)
+                        Text("Add clips to get started")
+                            .font(LiquidTypography.subheadline)
+                            .foregroundStyle(LiquidColors.textSecondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Empty timeline. Add clips to get started.")
+            } else {
+                TimelineView(
+                    viewModel: timelineViewModel,
+                    playbackViewModel: playbackViewModel
+                )
+            }
+        }
+        .onAppear {
+            syncTimelineViewModel()
+        }
+    }
+
+    // MARK: - Inline Tool Panel
+
+    @ViewBuilder
+    private var toolPanelInline: some View {
+        switch viewModel.activePanel {
+        case .none:
+            EmptyView()
+
+        case .colorGrading:
+            ColorGradingSheet { _ in
+                viewModel.dismissPanel()
+            }
+
+        case .videoEffects:
+            VideoEffectsSheet { _ in
+                viewModel.dismissPanel()
+            }
+
+        case .crop:
+            CropSheet { _, _, _, _ in
+                viewModel.dismissPanel()
+            }
+
+        case .transition:
+            TransitionPickerSheet(onApply: { _, _, _ in
+                viewModel.dismissPanel()
+            })
+
+        case .audioEffects:
+            AudioEffectsSheet { _, _ in
+                viewModel.dismissPanel()
+            }
+
+        case .textEditor:
+            TextEditorSheet { _ in
+                viewModel.dismissPanel()
+            }
+
+        case .stickerPicker:
+            StickerPickerSheet { _ in
+                viewModel.dismissPanel()
+            }
+
+        case .volume:
+            VolumeControlSheet { _, _, _, _ in
+                viewModel.dismissPanel()
+            }
+
+        case .speed:
+            SpeedControlSheet { _ in
+                viewModel.dismissPanel()
+            }
+
+        case .trackManagement:
+            TrackManagementSheet { _ in
+                viewModel.dismissPanel()
+            }
+
+        case .keyframeEditor:
+            if viewModel.hasKeyframeAtCurrentTime {
+                KeyframeEditorSheet(
+                    keyframe: Keyframe(
+                        id: "keyframe-\(viewModel.currentTime)",
+                        timestampMicros: viewModel.currentTime
+                    ),
+                    videoDurationMicros: viewModel.totalDuration,
+                    onUpdate: { _ in viewModel.dismissPanel() },
+                    onDelete: { _ in
+                        viewModel.deleteKeyframeAtCurrentTime()
+                        viewModel.dismissPanel()
+                    },
+                    onDuplicate: { _ in viewModel.dismissPanel() },
+                    onResetTransform: {}
+                )
+            } else {
+                ContentUnavailableView(
+                    "No Clip Selected",
+                    systemImage: "film",
+                    description: Text("Select a clip to edit its keyframes")
+                )
+            }
+
+        case .autoReframe:
+            AutoReframePanel(
+                engine: autoReframeEngine,
+                onApply: { viewModel.dismissPanel() },
+                onClose: { viewModel.dismissPanel() }
+            )
+
+        case .personSelection:
+            PersonSelectionSheet(
+                persons: [],
+                selectedIndices: $selectedPersonIndices,
+                onConfirm: { viewModel.dismissPanel() },
+                onDismiss: { viewModel.dismissPanel() }
+            )
+        }
+    }
+
+    // MARK: - Sheet Views
+
+    @ViewBuilder
+    private var exportSheet: some View {
+        ExportSheet(
+            estimatedDurationSeconds: Double(viewModel.totalDuration) / 1_000_000.0,
+            thumbnailImage: exportThumbnail
+        )
+    }
+
+    @ViewBuilder
+    private var settingsSheet: some View {
+        SettingsView(
+            preferencesRepository: RepositoryContainer.shared.preferencesRepository
+        )
+    }
+
+    // MARK: - Sync
+
+    /// Synchronize the timeline view model with the editor's current timeline.
+    private func syncTimelineViewModel() {
+        timelineViewModel = TimelineViewModel(
+            timeline: viewModel.timeline,
+            tracks: timelineViewModel.tracks
+        )
+        playbackViewModel.updateTotalDuration(viewModel.totalDuration)
+    }
+
+    // MARK: - Layout Helpers
+
+    /// The current video's aspect ratio derived from the player's presentation size.
+    private var currentVideoAspectRatio: CGFloat? {
+        guard let size = viewModel.player?.currentItem?.presentationSize,
+              size.width > 0, size.height > 0 else { return nil }
+        return size.width / size.height
+    }
+
+    // MARK: - Layout Constants
+
+    /// Navigation bar height.
+    private static let navigationBarHeight: CGFloat = 44
+
+    /// Playback controls row height.
+    private static let playbackControlsHeight: CGFloat = 30
+
+    /// Toolbar height (approximate).
+    private static let toolbarHeight: CGFloat = 140
+
+    /// Preview ratio of available content area.
+    private static let previewHeightRatio: CGFloat = 0.55
+
+    /// Timeline ratio of available content area.
+    private static let timelineHeightRatio: CGFloat = 0.45
+
+    /// Minimum preview height.
+    private static let minPreviewHeight: CGFloat = 200
+
+    /// Minimum timeline height.
+    private static let minTimelineHeight: CGFloat = 120
+
+    /// Calculate preview height based on available geometry.
+    private func previewHeight(for geometry: GeometryProxy) -> CGFloat {
+        let available = geometry.size.height
+            - Self.navigationBarHeight
+            - Self.playbackControlsHeight
+            - Self.toolbarHeight
+        return max(available * Self.previewHeightRatio, Self.minPreviewHeight)
+    }
+
+    /// Calculate timeline height based on available geometry.
+    private func timelineHeight(for geometry: GeometryProxy) -> CGFloat {
+        let available = geometry.size.height
+            - Self.navigationBarHeight
+            - Self.playbackControlsHeight
+            - Self.toolbarHeight
+        return max(available * Self.timelineHeightRatio, Self.minTimelineHeight)
+    }
+
+    // MARK: - Thumbnail Generation
+
+    /// Generates a thumbnail from the current video asset at the current playhead time.
+    ///
+    /// Uses `AVAssetImageGenerator` to capture a frame. The work is performed
+    /// off the main actor to avoid blocking the UI thread.
+    private func generateExportThumbnail() {
+        guard let asset = viewModel.player?.currentItem?.asset else {
+            exportThumbnail = nil
+            return
+        }
+
+        let currentTimeMicros = viewModel.currentTime
+        let requestTime = CMTime(
+            value: Int64(currentTimeMicros),
+            timescale: 1_000_000
+        )
+
+        Task.detached {
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 560, height: 400)
+            generator.requestedTimeToleranceBefore = CMTime(seconds: 1, preferredTimescale: 600)
+            generator.requestedTimeToleranceAfter = CMTime(seconds: 1, preferredTimescale: 600)
+
+            do {
+                let (cgImage, _) = try await generator.image(at: requestTime)
+                let image = UIImage(cgImage: cgImage)
+                await MainActor.run {
+                    exportThumbnail = image
+                }
+            } catch {
+                await MainActor.run {
+                    exportThumbnail = nil
+                }
+            }
+        }
+    }
+}
