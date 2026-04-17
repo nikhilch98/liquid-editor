@@ -96,14 +96,19 @@ final class SnapController {
     private var pixelsPerMicros: Double = 0.0
 
     /// Priority values for snap targets (lower = higher priority).
-    private static let priorities: [SnapTargetType: Int] = [
-        .playhead: 0,     // Highest priority
-        .clipEdge: 1,
-        .marker: 2,
-        .inOutPoint: 3,
-        .beatMarker: 4,
-        .gridLine: 5      // Lowest priority
-    ]
+    ///
+    /// Uses an exhaustive `switch` so the compiler enforces coverage when
+    /// new `SnapTargetType` cases are added.
+    private static func priority(for type: SnapTargetType) -> Int {
+        switch type {
+        case .playhead:    return 0   // Highest priority
+        case .clipEdge:    return 1
+        case .marker:      return 2
+        case .inOutPoint:  return 3
+        case .beatMarker:  return 4
+        case .gridLine:    return 5   // Lowest priority
+        }
+    }
 
     // MARK: - Scale
 
@@ -231,7 +236,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: playheadTime,
                 type: .playhead,
-                priority: Self.priorities[.playhead]!,
+                priority: Self.priority(for: .playhead),
                 pixelDistance: dist
             ))
         }
@@ -242,7 +247,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: edgeTime,
                 type: .clipEdge,
-                priority: Self.priorities[.clipEdge]!,
+                priority: Self.priority(for: .clipEdge),
                 pixelDistance: dist
             ))
         }
@@ -253,7 +258,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: markerTime,
                 type: .marker,
-                priority: Self.priorities[.marker]!,
+                priority: Self.priority(for: .marker),
                 pixelDistance: dist
             ))
         }
@@ -264,7 +269,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: inPt,
                 type: .inOutPoint,
-                priority: Self.priorities[.inOutPoint]!,
+                priority: Self.priority(for: .inOutPoint),
                 pixelDistance: dist
             ))
         }
@@ -273,7 +278,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: outPt,
                 type: .inOutPoint,
-                priority: Self.priorities[.inOutPoint]!,
+                priority: Self.priority(for: .inOutPoint),
                 pixelDistance: dist
             ))
         }
@@ -311,7 +316,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: playheadTime,
                 type: .playhead,
-                priority: Self.priorities[.playhead]!,
+                priority: Self.priority(for: .playhead),
                 pixelDistance: dist
             ))
         }
@@ -322,7 +327,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: targetTime,
                 type: .clipEdge,
-                priority: Self.priorities[.clipEdge]!,
+                priority: Self.priority(for: .clipEdge),
                 pixelDistance: dist
             ))
         }
@@ -333,7 +338,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: markerTime,
                 type: .marker,
-                priority: Self.priorities[.marker]!,
+                priority: Self.priority(for: .marker),
                 pixelDistance: dist
             ))
         }
@@ -344,7 +349,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: inPt,
                 type: .inOutPoint,
-                priority: Self.priorities[.inOutPoint]!,
+                priority: Self.priority(for: .inOutPoint),
                 pixelDistance: dist
             ))
         }
@@ -353,7 +358,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: outPt,
                 type: .inOutPoint,
-                priority: Self.priorities[.inOutPoint]!,
+                priority: Self.priority(for: .inOutPoint),
                 pixelDistance: dist
             ))
         }
@@ -364,7 +369,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: beatTime,
                 type: .beatMarker,
-                priority: Self.priorities[.beatMarker]!,
+                priority: Self.priority(for: .beatMarker),
                 pixelDistance: dist
             ))
         }
@@ -375,7 +380,7 @@ final class SnapController {
             candidates.append(SnapCandidate(
                 time: gridTime,
                 type: .gridLine,
-                priority: Self.priorities[.gridLine]!,
+                priority: Self.priority(for: .gridLine),
                 pixelDistance: dist
             ))
         }

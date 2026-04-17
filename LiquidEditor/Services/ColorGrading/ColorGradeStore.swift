@@ -103,11 +103,10 @@ final class ColorGradeStore {
     /// Add a color keyframe for a clip.
     /// Maintains sorted order by timestamp.
     func addKeyframe(_ clipId: String, _ keyframe: ColorKeyframe) {
-        if keyframes[clipId] == nil {
-            keyframes[clipId] = []
-        }
-        keyframes[clipId]!.append(keyframe)
-        keyframes[clipId]!.sort { $0.timestampMicros < $1.timestampMicros }
+        var list = keyframes[clipId] ?? []
+        list.append(keyframe)
+        list.sort { $0.timestampMicros < $1.timestampMicros }
+        keyframes[clipId] = list
     }
 
     /// Remove a color keyframe by ID.
@@ -120,12 +119,13 @@ final class ColorGradeStore {
 
     /// Update a color keyframe in place.
     func updateKeyframe(_ clipId: String, _ keyframe: ColorKeyframe) {
-        guard let kfs = keyframes[clipId],
+        guard var kfs = keyframes[clipId],
               let index = kfs.firstIndex(where: { $0.id == keyframe.id }) else {
             return
         }
-        keyframes[clipId]![index] = keyframe
-        keyframes[clipId]!.sort { $0.timestampMicros < $1.timestampMicros }
+        kfs[index] = keyframe
+        kfs.sort { $0.timestampMicros < $1.timestampMicros }
+        keyframes[clipId] = kfs
     }
 
     /// Clear all keyframes for a clip.
