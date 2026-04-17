@@ -795,10 +795,22 @@ final class FrameCache: @unchecked Sendable {
                 s.currentMaxFrames = Self.normalMaxFrames
             case .warning:
                 s.currentMaxFrames = Self.warningMaxFrames
+                let beforeCount = s.cache.count
+                let beforeBytes = s.memoryUsageBytes
                 Self.evictToTarget(Self.warningMaxFrames, state: &s)
+                let remaining = s.cache.count
+                let evicted = beforeCount - remaining
+                let freedBytes = beforeBytes - s.memoryUsageBytes
+                logger.warning("Memory pressure (warning): evicted \(evicted) frames, \(remaining) remaining, freed \(freedBytes) bytes")
             case .critical:
                 s.currentMaxFrames = Self.criticalMaxFrames
+                let beforeCount = s.cache.count
+                let beforeBytes = s.memoryUsageBytes
                 Self.evictToTarget(Self.criticalMaxFrames, state: &s)
+                let remaining = s.cache.count
+                let evicted = beforeCount - remaining
+                let freedBytes = beforeBytes - s.memoryUsageBytes
+                logger.warning("Memory pressure (critical): evicted \(evicted) frames, \(remaining) remaining, freed \(freedBytes) bytes")
             }
         }
     }
