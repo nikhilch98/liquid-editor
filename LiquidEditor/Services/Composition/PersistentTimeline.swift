@@ -498,6 +498,41 @@ struct PersistentTimeline: Sendable, CustomStringConvertible {
         let ms = totalDurationMicros / 1_000
         return "PersistentTimeline(\(count) items, \(ms)ms)"
     }
+
+    // MARK: - Debug / Invariant Checks
+
+    /// Recursively verifies the AVL invariant across every node in the tree.
+    ///
+    /// For each non-nil node, this asserts:
+    /// 1. Balance factor: `|height(left) - height(right)| <= 1`
+    /// 2. Height consistency: `node.height == 1 + max(height(left), height(right))`
+    /// 3. Leaf height == 1
+    ///
+    /// Intended for test/debug use only.
+    ///
+    /// - Returns: `true` if the invariant holds at every node, `false` otherwise.
+    func _checkBalanceInvariant() -> Bool {
+        Self._checkBalanceInvariant(root) >= 0
+    }
+
+    /// Returns the computed height of the subtree if the invariant holds everywhere,
+    /// or `-1` if any node violates the AVL invariant or stored height.
+    private static func _checkBalanceInvariant(_ node: TimelineNode?) -> Int {
+        guard let node else { return 0 }
+
+        let leftHeight = _checkBalanceInvariant(node.left)
+        if leftHeight < 0 { return -1 }
+
+        let rightHeight = _checkBalanceInvariant(node.right)
+        if rightHeight < 0 { return -1 }
+
+        if abs(leftHeight - rightHeight) > 1 { return -1 }
+
+        let expectedHeight = 1 + max(leftHeight, rightHeight)
+        if node.height != expectedHeight { return -1 }
+
+        return expectedHeight
+    }
 }
 
 // MARK: - In-Order Iterator

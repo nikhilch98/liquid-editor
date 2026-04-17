@@ -1023,15 +1023,44 @@ struct PersistentTimelineTests {
         #expect(tl.totalDurationMicros == 0)
     }
 
-    @Test("AVL tree stays balanced after many sequential appends")
-    func avlBalanceAfterAppends() {
-        let count = 64
-        let tl = buildTimeline(count: count)
+    @Test("AVL invariant holds across inserts and random removals")
+    func avlInvariantHoldsAcrossMutations() {
+        // Deterministic linear congruential generator (Numerical Recipes parameters)
+        // so the test is reproducible without depending on platform SystemRandomNumberGenerator.
+        struct SeededLCG: RandomNumberGenerator {
+            var state: UInt64
+            mutating func next() -> UInt64 {
+                state = state &* 1_664_525 &+ 1_013_904_223
+                return state
+            }
+        }
+        var rng = SeededLCG(state: 0xDEAD_BEEF_CAFE_F00D)
 
-        // For an AVL tree with 64 nodes, max height is ~1.44 * log2(65) ~ 8.7
-        // Practically it should be around 7 or less
-        #expect(tl.root!.height <= 10)
-        #expect(tl.root!.isBalanced)
+        // Phase 1: 200 sequential inserts — check invariant after every one.
+        var tl = PersistentTimeline.empty
+        for i in 0..<200 {
+            tl = tl.append(makeItem("item\(i)"))
+            #expect(tl._checkBalanceInvariant(),
+                    "AVL invariant violated after insert #\(i)")
+        }
+        #expect(tl.count == 200)
+
+        // Phase 2: 100 random removals (seeded) — check invariant after every one.
+        // Collect current IDs and shuffle with the seeded RNG so the removal order
+        // is deterministic but non-sequential (stresses rebalancing).
+        var liveIds = (0..<200).map { "item\($0)" }
+        liveIds.shuffle(using: &rng)
+
+        for k in 0..<100 {
+            let id = liveIds.removeLast()
+            tl = tl.remove(id)
+            #expect(tl._checkBalanceInvariant(),
+                    "AVL invariant violated after removal #\(k) (id=\(id))")
+        }
+        #expect(tl.count == 100)
+
+        // Final state must still satisfy the AVL invariant at every node.
+        #expect(tl._checkBalanceInvariant())
     }
 
     @Test("getById is consistent with containsId")
