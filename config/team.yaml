@@ -1,0 +1,36 @@
+team_name: "Editor"
+
+cli_provider: "claude"
+
+database:
+  path: "/Users/nikhilchatragadda/.taskbrew/data/editor.db"
+
+dashboard:
+  host: "0.0.0.0"
+  port: 8420
+
+artifacts:
+  base_dir: "artifacts"
+
+defaults:
+  max_instances: 1
+  poll_interval_seconds: 5
+  idle_timeout_minutes: 30
+  auto_scale:
+    enabled: false
+    scale_up_threshold: 3
+    scale_down_idle: 15
+
+group_prefixes:
+  pm: "FEAT"
+  architect: "DEBT"
+
+auth:
+  enabled: false
+  tokens: []
+
+cost_budgets:
+  enabled: false
+
+webhooks:
+  enabled: false

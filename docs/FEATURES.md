@@ -54,7 +54,6 @@
 | **Speed Control** | Complete | Services/Speed |
 | **Masking** | Complete | Services/Masking |
 | **Keyboard Shortcuts** | Complete | Services/Utility |
-| **iCloud Sync** | Complete | Services/Utility |
 | **Test Coverage (1,918 tests)** | Complete | LiquidEditorTests |
 
 ---
@@ -492,7 +491,6 @@ Automatic keyframe generation to keep subjects in frame:
 | `HapticService.swift` | Centralized haptic feedback |
 | `ShortcutService.swift` | Keyboard shortcut handling |
 | `StorageAnalysisService.swift` | Storage usage analysis |
-| `iCloudSyncService.swift` | iCloud sync |
 | `GesturePreferences.swift` | Gesture customization |
 
 ---
@@ -507,11 +505,12 @@ Automatic keyframe generation to keep subjects in frame:
 
 ### Future Enhancements
 
-1. **Pose Tracking** -- VNDetectHumanBodyPoseRequest for skeletal tracking
-2. **Scene Detection** -- Automatic scene boundary detection
-3. **AI-Powered Features** -- Smart trim, highlight detection
-4. **Collaboration** -- Multi-device project sharing
-5. **iPad Support** -- Optimized layout for larger screens
+1. **iCloud Sync** -- NSUbiquitousKeyValueStore for preferences and CloudKit for cross-device project sync (stub previously shipped; removed 2026-04-17)
+2. **Pose Tracking** -- VNDetectHumanBodyPoseRequest for skeletal tracking
+3. **Scene Detection** -- Automatic scene boundary detection
+4. **AI-Powered Features** -- Smart trim, highlight detection
+5. **Collaboration** -- Multi-device project sharing
+6. **iPad Support** -- Optimized layout for larger screens
 
 ---
 
