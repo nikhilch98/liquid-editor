@@ -166,9 +166,12 @@ actor WaveformExtractor {
         let samplesPerBucket = levelOfDetail.samplesPerBucket(sampleRate: standardSampleRate)
         var peaks: [Float] = []
 
-        // Residual buffer for leftover samples that don't fill a complete bucket.
-        // Bounded to at most samplesPerBucket-1 elements (~4KB at most for low LOD).
-        var residual: [Float] = []
+        // Streaming bucket state: we never materialise a residual sample buffer.
+        // When a bucket spans a chunk boundary we carry forward only the running
+        // peak (a single Float) and the number of samples already counted. This
+        // keeps peak memory O(1) with respect to file length.
+        var bucketPeak: Float = 0
+        var bucketFilled: Int = 0
 
         while reader.status == .reading {
             guard let buffer = output.copyNextSampleBuffer(),
@@ -186,52 +189,25 @@ actor WaveformExtractor {
                 dataPointerOut: &dataPointer
             )
 
-            guard let ptr = dataPointer else { continue }
+            guard let ptr = dataPointer else {
+                CMSampleBufferInvalidate(buffer)
+                continue
+            }
 
             let floatCount = length / MemoryLayout<Float>.size
             let floatPointer = UnsafeRawPointer(ptr)
                 .bindMemory(to: Float.self, capacity: floatCount)
 
-            // Process directly from the raw pointer without copying into a growing buffer.
-            var offset = 0
-
-            // First, complete any partial bucket from the residual
-            if !residual.isEmpty {
-                let needed = samplesPerBucket - residual.count
-                let available = min(needed, floatCount)
-                residual.append(contentsOf: UnsafeBufferPointer(
-                    start: floatPointer,
-                    count: available
-                ))
-                offset = available
-
-                if residual.count >= samplesPerBucket {
-                    var peak: Float = 0
-                    vDSP_maxmgv(residual, 1, &peak, vDSP_Length(residual.count))
-                    peaks.append(peak)
-                    residual.removeAll(keepingCapacity: true)
-                }
-            }
-
-            // Process complete buckets directly from the pointer (zero-copy)
-            while offset + samplesPerBucket <= floatCount {
-                var peak: Float = 0
-                vDSP_maxmgv(
-                    floatPointer.advanced(by: offset), 1,
-                    &peak,
-                    vDSP_Length(samplesPerBucket)
-                )
-                peaks.append(peak)
-                offset += samplesPerBucket
-            }
-
-            // Store leftover samples in the residual (always < samplesPerBucket)
-            if offset < floatCount {
-                residual.append(contentsOf: UnsafeBufferPointer(
-                    start: floatPointer.advanced(by: offset),
-                    count: floatCount - offset
-                ))
-            }
+            // Process the chunk in-place against the raw pointer. No sample
+            // arrays are allocated — we only update scalar bucket state.
+            processChunk(
+                pointer: floatPointer,
+                count: floatCount,
+                samplesPerBucket: samplesPerBucket,
+                bucketPeak: &bucketPeak,
+                bucketFilled: &bucketFilled,
+                peaks: &peaks
+            )
 
             CMSampleBufferInvalidate(buffer)
         }
@@ -242,11 +218,11 @@ actor WaveformExtractor {
             )
         }
 
-        // Process remaining samples in the residual
-        if !residual.isEmpty {
-            var peak: Float = 0
-            vDSP_maxmgv(residual, 1, &peak, vDSP_Length(residual.count))
-            peaks.append(peak)
+        // Flush the trailing partial bucket (if any) as a final peak.
+        if bucketFilled > 0 {
+            peaks.append(bucketPeak)
+            bucketPeak = 0
+            bucketFilled = 0
         }
 
         // Normalize peaks to 0.0 - 1.0
@@ -260,6 +236,81 @@ actor WaveformExtractor {
             durationMicros: durationMicros,
             levelOfDetail: levelOfDetail
         )
+    }
+
+    // MARK: - Streaming Chunk Processing
+
+    /// Process a single decoded PCM chunk, emitting completed bucket peaks
+    /// directly into `peaks` and carrying the running scalar state forward
+    /// for any bucket that straddles the chunk boundary.
+    ///
+    /// Memory cost is O(1) per chunk — the only state kept across chunks is
+    /// the current bucket's running peak magnitude and the count of samples
+    /// already folded into it. The chunk itself is read through the raw
+    /// pointer and never copied into a Swift array.
+    ///
+    /// - Parameters:
+    ///   - pointer: Base pointer to the decoded Float32 PCM chunk.
+    ///   - count: Number of Float samples in the chunk.
+    ///   - samplesPerBucket: Target bucket width for the requested LOD.
+    ///   - bucketPeak: Running max-magnitude for the in-progress bucket.
+    ///   - bucketFilled: Samples already folded into the in-progress bucket.
+    ///   - peaks: Output buffer — completed bucket peaks are appended here.
+    private nonisolated func processChunk(
+        pointer: UnsafePointer<Float>,
+        count: Int,
+        samplesPerBucket: Int,
+        bucketPeak: inout Float,
+        bucketFilled: inout Int,
+        peaks: inout [Float]
+    ) {
+        guard count > 0, samplesPerBucket > 0 else { return }
+
+        var offset = 0
+
+        // Finish the in-progress bucket first (if one is carried from the
+        // previous chunk) by folding in just enough samples to complete it.
+        if bucketFilled > 0 {
+            let needed = samplesPerBucket - bucketFilled
+            let take = min(needed, count)
+            var slicePeak: Float = 0
+            vDSP_maxmgv(pointer, 1, &slicePeak, vDSP_Length(take))
+            bucketPeak = max(bucketPeak, slicePeak)
+            bucketFilled += take
+            offset = take
+
+            if bucketFilled >= samplesPerBucket {
+                peaks.append(bucketPeak)
+                bucketPeak = 0
+                bucketFilled = 0
+            }
+        }
+
+        // Emit complete buckets directly from the pointer (zero-copy).
+        while offset + samplesPerBucket <= count {
+            var peak: Float = 0
+            vDSP_maxmgv(
+                pointer.advanced(by: offset), 1,
+                &peak,
+                vDSP_Length(samplesPerBucket)
+            )
+            peaks.append(peak)
+            offset += samplesPerBucket
+        }
+
+        // Fold any trailing partial bucket into the running state (scalar
+        // only — the samples themselves are discarded with the chunk).
+        if offset < count {
+            let remaining = count - offset
+            var slicePeak: Float = 0
+            vDSP_maxmgv(
+                pointer.advanced(by: offset), 1,
+                &slicePeak,
+                vDSP_Length(remaining)
+            )
+            bucketPeak = max(bucketPeak, slicePeak)
+            bucketFilled += remaining
+        }
     }
 
     // MARK: - Normalization
