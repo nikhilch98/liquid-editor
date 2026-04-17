@@ -212,7 +212,7 @@ final class EditorViewModel {
 
     /// Composition manager reference for AVPlayer access.
     /// The player is created by the composition manager during hot-swap.
-    private let compositionManager: CompositionManager?
+    private var compositionManager: CompositionManager?
 
     /// Voiceover recorder — created fresh per recording session.
     private var voiceoverRecorder: VoiceoverRecorder?
@@ -272,6 +272,139 @@ final class EditorViewModel {
 
     /// Whether media has been loaded and the player is ready for display.
     var hasMedia: Bool { compositionManager?.player != nil }
+
+    // MARK: - Project Loading
+
+    /// Wire playback services and build the initial composition from the
+    /// project's source media.
+    ///
+    /// Handles three cases:
+    /// 1. Legacy project with a `sourceVideoPath` and no `clips`: constructs
+    ///    a single `VideoClip` covering the full source, appends it to the
+    ///    timeline, and hot-swaps a one-segment composition into the player.
+    /// 2. Project with a non-empty multi-clip `clips` array: decodes each
+    ///    JSON entry via `TimelineItemDecoder`, appends each item to the
+    ///    timeline, and builds a segment per video clip (other clip types
+    ///    are added to the timeline but not to the composition).
+    /// 3. Empty project (no source video and no clips): leaves the timeline
+    ///    empty so the empty-state UI can present an import CTA.
+    ///
+    /// Surfaces errors via `errorMessage` rather than throwing so the view
+    /// can show the existing error state.
+    func loadProject(services: ServiceContainer = .shared) async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        self.compositionManager = services.compositionManager
+        self.playbackEngine = services.playbackEngine
+
+        let segments = buildSegmentsAndPopulateTimeline()
+        guard !segments.isEmpty else {
+            Self.logger.info("Project has no playable media; leaving editor in empty state")
+            return
+        }
+
+        await services.playbackEngine.rebuildComposition(segments: segments)
+        Self.logger.debug("Composition rebuilt with \(segments.count, privacy: .public) segment(s)")
+    }
+
+    /// Decodes any existing clips (or falls back to a single source-video
+    /// clip) into the in-memory timeline and returns the matching
+    /// `CompositionSegment` list.
+    private func buildSegmentsAndPopulateTimeline() -> [CompositionSegment] {
+        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+
+        // Case 2: project has a serialized multi-clip array
+        if !project.clips.isEmpty {
+            var timelineUnderConstruction = timeline
+            var segments: [CompositionSegment] = []
+            var cumulativeMicros: TimeMicros = 0
+
+            for (index, clipDict) in project.clips.enumerated() {
+                let rawDict = clipDict.mapValues(Self.unwrap)
+                guard let item = try? TimelineItemDecoder.decode(from: rawDict) else {
+                    Self.logger.warning("Skipping unparseable clip at index \(index, privacy: .public)")
+                    continue
+                }
+
+                timelineUnderConstruction = timelineUnderConstruction.append(item)
+
+                if let videoClip = item as? VideoClip,
+                   let url = resolveSourceURL(documentsDir: documentsDir) {
+                    let durationMicros = videoClip.sourceOutMicros - videoClip.sourceInMicros
+                    segments.append(CompositionSegment(
+                        clipId: videoClip.id,
+                        assetId: videoClip.mediaAssetId,
+                        assetURL: url,
+                        sourceTimeRange: TimeRange(videoClip.sourceInMicros, videoClip.sourceOutMicros),
+                        timelineStartTime: cumulativeMicros,
+                        playbackSpeed: videoClip.speedSettings?.speedMultiplier ?? 1.0,
+                        volume: 1.0,
+                        trackIndex: 0
+                    ))
+                    cumulativeMicros += durationMicros
+                }
+            }
+
+            timeline = timelineUnderConstruction
+            return segments
+        }
+
+        // Case 1: legacy single-source project
+        guard !project.sourceVideoPath.isEmpty,
+              let documentsDir,
+              project.durationMicros > 0 else {
+            return []
+        }
+
+        let sourceURL = documentsDir.appendingPathComponent(project.sourceVideoPath)
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            Self.logger.error("Source video missing at \(sourceURL.path, privacy: .public)")
+            errorMessage = "Source video file could not be found."
+            return []
+        }
+
+        let clip = VideoClip(
+            id: "source-\(project.id)",
+            mediaAssetId: project.id,
+            sourceInMicros: 0,
+            sourceOutMicros: project.durationMicros
+        )
+        timeline = timeline.append(clip)
+
+        let segment = CompositionSegment(
+            clipId: clip.id,
+            assetId: clip.mediaAssetId,
+            assetURL: sourceURL,
+            sourceTimeRange: TimeRange(0, project.durationMicros),
+            timelineStartTime: 0,
+            playbackSpeed: 1.0,
+            volume: 1.0,
+            trackIndex: 0
+        )
+        return [segment]
+    }
+
+    private func resolveSourceURL(documentsDir: URL?) -> URL? {
+        guard !project.sourceVideoPath.isEmpty, let documentsDir else { return nil }
+        return documentsDir.appendingPathComponent(project.sourceVideoPath)
+    }
+
+    /// Recursively unwrap an `AnyCodableValue` back into a plain JSON-compatible
+    /// value so the dictionary can be fed into `TimelineItemDecoder`, which
+    /// expects `[String: Any]` as produced by `JSONSerialization`.
+    private static func unwrap(_ value: AnyCodableValue) -> Any {
+        switch value {
+        case .null: return NSNull()
+        case .bool(let v): return v
+        case .int(let v): return v
+        case .double(let v): return v
+        case .string(let v): return v
+        case .array(let v): return v.map(unwrap)
+        case .object(let v): return v.mapValues(unwrap)
+        }
+    }
 
     // MARK: - Playback Control
 

@@ -56,10 +56,21 @@ struct EditorView: View {
         _timelineViewModel = State(
             initialValue: TimelineViewModel(
                 timeline: editorVM.timeline,
-                tracks: []
+                tracks: [Self.defaultMainVideoTrack]
             )
         )
         _playbackViewModel = State(initialValue: PlaybackViewModel())
+    }
+
+    /// Default single "Main Video" track used before the project is loaded
+    /// and as the minimum lane for the timeline UI.
+    private static var defaultMainVideoTrack: Track {
+        Track(
+            id: "main-video",
+            name: TrackType.mainVideo.displayName,
+            type: .mainVideo,
+            index: 0
+        )
     }
 
     // MARK: - Body
@@ -143,6 +154,10 @@ struct EditorView: View {
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
         .statusBarHidden()
+        .task {
+            await viewModel.loadProject()
+            syncTimelineViewModel()
+        }
         .sheet(isPresented: $viewModel.showExportSheet) {
             exportSheet
         }
@@ -593,10 +608,15 @@ struct EditorView: View {
     // MARK: - Sync
 
     /// Synchronize the timeline view model with the editor's current timeline.
+    /// Preserves existing tracks if any, falling back to a single Main Video
+    /// track so the timeline always has at least one lane to render clips on.
     private func syncTimelineViewModel() {
+        let tracks = timelineViewModel.tracks.isEmpty
+            ? [Self.defaultMainVideoTrack]
+            : timelineViewModel.tracks
         timelineViewModel = TimelineViewModel(
             timeline: viewModel.timeline,
-            tracks: timelineViewModel.tracks
+            tracks: tracks
         )
         playbackViewModel.updateTotalDuration(viewModel.totalDuration)
     }
