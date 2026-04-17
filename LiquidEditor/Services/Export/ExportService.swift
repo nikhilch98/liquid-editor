@@ -220,8 +220,17 @@ actor ExportService {
             Self.logger.warning("Thermal concern detected, proceeding with caution")
         }
 
-        // Begin background task
-        await backgroundService.beginBackgroundExport(exportId: jobId)
+        // Begin background task. If the concurrent-export cap is reached,
+        // the service throws and we surface a failure instead of spawning
+        // an unbounded Task.
+        do {
+            try await backgroundService.beginBackgroundExport(exportId: jobId)
+        } catch {
+            Self.logger.error("Export \(jobId, privacy: .public) rejected by background service: \(error.localizedDescription, privacy: .public)")
+            emit(phase: .failed, progress: -1.0)
+            continuation.finish()
+            return
+        }
 
         guard !cancelRequested else {
             await backgroundService.endBackgroundExport()

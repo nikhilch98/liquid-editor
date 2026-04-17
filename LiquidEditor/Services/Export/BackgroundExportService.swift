@@ -26,9 +26,30 @@ private final class WeakRef<T: AnyObject>: @unchecked Sendable {
 /// - UIApplication APIs are called on `@MainActor` as required.
 actor BackgroundExportService {
 
+    // MARK: - Errors
+
+    /// Errors thrown by `BackgroundExportService`.
+    enum ExportQueueError: Error, Equatable {
+        /// Thrown when starting a new export would exceed the configured
+        /// maximum number of concurrent exports.
+        case queueFull(active: Int, limit: Int)
+    }
+
     // MARK: - Properties
 
     private static let logger = Logger(subsystem: "LiquidEditor", category: "BackgroundExportService")
+
+    /// Default maximum number of concurrent export tasks allowed.
+    static let defaultMaxConcurrentExports: Int = 2
+
+    /// Maximum number of concurrent export tasks allowed. Additional
+    /// `beginBackgroundExport` calls beyond this limit are rejected.
+    private let maxConcurrentExports: Int
+
+    /// Active export identifiers currently holding a background-task slot.
+    /// Bounded by `maxConcurrentExports` to prevent unbounded Task spawning
+    /// from rapid repeated export requests.
+    private var activeExportIds: Set<String> = []
 
     /// Background task identifier.
     private var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
@@ -42,12 +63,49 @@ actor BackgroundExportService {
     /// Callback invoked when background time is about to expire.
     private var onBackgroundTimeExpiring: (() -> Void)?
 
+    // MARK: - Init
+
+    /// Creates a new service.
+    ///
+    /// - Parameter maxConcurrentExports: Maximum number of concurrent exports
+    ///   permitted before `beginBackgroundExport` rejects new starts.
+    ///   Defaults to `defaultMaxConcurrentExports` (2). Clamped to at least 1.
+    init(maxConcurrentExports: Int = BackgroundExportService.defaultMaxConcurrentExports) {
+        self.maxConcurrentExports = max(1, maxConcurrentExports)
+    }
+
+    /// Current number of active (reserved) export slots.
+    var activeExportCount: Int { activeExportIds.count }
+
     // MARK: - Background Task Management
 
     /// Begin a background task for an export operation.
     ///
+    /// Enforces `maxConcurrentExports`. If the queue is full, throws
+    /// `ExportQueueError.queueFull` without spawning any Task.
+    ///
     /// - Parameter exportId: Unique identifier for the export.
-    func beginBackgroundExport(exportId: String) {
+    /// - Throws: `ExportQueueError.queueFull` when the concurrent-export cap
+    ///   is reached.
+    func beginBackgroundExport(exportId: String) throws {
+        // Reject duplicate IDs silently (already counted as an active slot).
+        guard !activeExportIds.contains(exportId) else {
+            Self.logger.debug("Export \(exportId, privacy: .public) already active; ignoring duplicate start")
+            return
+        }
+
+        guard activeExportIds.count < maxConcurrentExports else {
+            Self.logger.warning(
+                "Rejecting export \(exportId, privacy: .public): concurrent cap \(self.maxConcurrentExports) reached (\(self.activeExportIds.count) active)"
+            )
+            throw ExportQueueError.queueFull(active: activeExportIds.count, limit: maxConcurrentExports)
+        }
+
+        // Reserve the slot BEFORE spawning the Task so the cap is enforced
+        // synchronously on the actor. Releasing happens in
+        // `endBackgroundExport` / `handleBackgroundTimeExpiring`.
+        activeExportIds.insert(exportId)
+
         let weakSelf = WeakRef(self)
         Task { @MainActor in
             let taskId = UIApplication.shared.beginBackgroundTask(
@@ -72,6 +130,13 @@ actor BackgroundExportService {
             Task { @MainActor in
                 UIApplication.shared.endBackgroundTask(taskId)
             }
+        }
+        if let exportId = currentExportId {
+            activeExportIds.remove(exportId)
+        } else {
+            // Defensive: if endBackgroundExport is called before the
+            // spawned Task set currentExportId, drain any reserved slots.
+            activeExportIds.removeAll()
         }
         backgroundTaskId = .invalid
         currentExportId = nil
@@ -258,6 +323,9 @@ actor BackgroundExportService {
 
         let taskId = backgroundTaskId
         backgroundTaskId = .invalid
+        if let exportId = currentExportId {
+            activeExportIds.remove(exportId)
+        }
         currentExportId = nil
 
         if taskId != .invalid {

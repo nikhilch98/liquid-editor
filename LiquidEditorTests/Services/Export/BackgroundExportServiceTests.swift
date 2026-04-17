@@ -93,6 +93,44 @@ struct BackgroundExportServiceTests {
         #expect(isPaused == false)
     }
 
+    // MARK: - Concurrent Export Cap
+
+    @Test("beginBackgroundExport enforces maxConcurrentExports cap")
+    func beginBackgroundExportCapEnforced() async {
+        let limit = 2
+        let service = BackgroundExportService(maxConcurrentExports: limit)
+
+        var accepted = 0
+        var rejected = 0
+        var lastError: BackgroundExportService.ExportQueueError?
+
+        // Attempt 5 concurrent exports; only `limit` should succeed, the
+        // rest must be rejected with .queueFull BEFORE spawning a Task.
+        for index in 0..<5 {
+            do {
+                try await service.beginBackgroundExport(exportId: "export_\(index)")
+                accepted += 1
+            } catch let error as BackgroundExportService.ExportQueueError {
+                rejected += 1
+                lastError = error
+            } catch {
+                Issue.record("Unexpected error type: \(error)")
+            }
+        }
+
+        #expect(accepted == limit)
+        #expect(rejected == 3)
+
+        let activeCount = await service.activeExportCount
+        #expect(activeCount == limit)
+
+        if case .queueFull(_, let reportedLimit) = lastError {
+            #expect(reportedLimit == limit)
+        } else {
+            Issue.record("Expected .queueFull error, got \(String(describing: lastError))")
+        }
+    }
+
     // MARK: - Temp File Cleanup
 
     @Test("cleanupOldExports runs without crash")
