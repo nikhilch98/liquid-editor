@@ -164,6 +164,10 @@ struct EditorView: View {
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .task {
+            // Bind the transport-controls VM to the shared PlaybackEngine
+            // BEFORE loadProject so tap handlers on the play/seek buttons
+            // route through to the engine as soon as media is ready.
+            playbackViewModel.bind(to: ServiceContainer.shared.playbackEngine)
             await viewModel.loadProject()
             syncTimelineViewModel()
         }
