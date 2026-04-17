@@ -37,7 +37,8 @@ private let logger = Logger(subsystem: "LiquidEditor", category: "MultiTrackComp
 /// Thread Safety:
 /// - `startRequest(_:)` dispatches to a concurrent render queue for parallel frame rendering.
 /// - `CIContext` is thread-safe and shared across all render requests.
-/// - Dynamic track config updates are protected by `configLock`.
+/// - Dynamic track config updates are protected by an `OSAllocatedUnfairLock`
+///   wrapping `dynamicTrackConfigs`.
 ///
 /// Integration:
 /// - Used as `customVideoCompositorClass` on AVMutableVideoComposition.
@@ -78,11 +79,16 @@ final class MultiTrackCompositor: NSObject, AVVideoCompositing {
     )
 
     /// Dynamic track configurations (updated from UI at runtime).
-    /// Protected by `configLock`; `nonisolated(unsafe)` suppresses Sendable warning.
-    private nonisolated(unsafe) var dynamicTrackConfigs: [String: TrackCompositeConfig]?
-
-    /// Lock protecting `dynamicTrackConfigs`.
-    private let configLock = NSLock()
+    ///
+    /// Access is synchronized by `OSAllocatedUnfairLock`, which is the project's
+    /// prescribed pattern for GPU hot-path state that must be reached
+    /// synchronously from non-isolated compositor callbacks (`startRequest`
+    /// executes on `renderQueue`, `updateTrackConfigs` is invoked from
+    /// `@MainActor` UI code). The lock-protected wrapper replaces a prior
+    /// `nonisolated(unsafe)` declaration so synchronization is enforced by the
+    /// type system rather than by convention.
+    private let dynamicTrackConfigs =
+        OSAllocatedUnfairLock<[String: TrackCompositeConfig]?>(initialState: nil)
 
     // MARK: - AVVideoCompositing Protocol Methods
 
@@ -118,16 +124,12 @@ final class MultiTrackCompositor: NSObject, AVVideoCompositing {
     ///
     /// - Parameter configs: Per-track composite configurations keyed by track ID.
     func updateTrackConfigs(_ configs: [String: TrackCompositeConfig]) {
-        configLock.lock()
-        dynamicTrackConfigs = configs
-        configLock.unlock()
+        dynamicTrackConfigs.withLock { $0 = configs }
     }
 
     /// Clear dynamic track configs (revert to instruction-based configs).
     func clearDynamicConfigs() {
-        configLock.lock()
-        dynamicTrackConfigs = nil
-        configLock.unlock()
+        dynamicTrackConfigs.withLock { $0 = nil }
     }
 
     // MARK: - Frame Processing
@@ -148,11 +150,12 @@ final class MultiTrackCompositor: NSObject, AVVideoCompositing {
         // Start with opaque black background
         var composited = CIImage(color: .black).cropped(to: outputExtent)
 
-        // Use dynamic configs if available, else fall back to instruction configs
-        let effectiveConfigs: [String: TrackCompositeConfig]
-        configLock.lock()
-        effectiveConfigs = dynamicTrackConfigs ?? instruction.trackConfigs
-        configLock.unlock()
+        // Use dynamic configs if available, else fall back to instruction configs.
+        // Snapshot the lock-protected optional into a local to minimize critical
+        // section duration; the dictionary itself is a value type so the copy is
+        // safe once we exit the lock.
+        let effectiveConfigs: [String: TrackCompositeConfig] = dynamicTrackConfigs
+            .withLock { $0 } ?? instruction.trackConfigs
 
         // Composite layers bottom-to-top (track order)
         for trackId in instruction.trackOrder {
