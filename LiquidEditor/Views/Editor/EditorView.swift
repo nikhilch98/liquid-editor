@@ -12,6 +12,7 @@
 //   5. Editor toolbar (tabs + tool buttons)
 
 import AVFoundation
+import PhotosUI
 import SwiftUI
 
 // MARK: - EditorView
@@ -41,6 +42,9 @@ struct EditorView: View {
 
     /// Thumbnail image generated from the current video for export preview.
     @State private var exportThumbnail: UIImage?
+
+    /// Pending PhotosPicker selection for attaching media to the project.
+    @State private var pendingImportItem: PhotosPickerItem?
 
     /// Dismiss action for navigation.
     @Environment(\.dismiss) private var dismiss
@@ -103,6 +107,11 @@ struct EditorView: View {
                     )
                     .frame(maxWidth: .infinity)
                     .frame(height: previewHeight(for: geometry))
+                    .overlay {
+                        if showImportCTA {
+                            importMediaCTA
+                        }
+                    }
                     .onChange(of: viewModel.currentTime) { _, newTime in
                         let ms = Int(newTime / 1_000)
                         Task { await viewModel.updateTrackingBoxes(for: ms) }
@@ -157,6 +166,13 @@ struct EditorView: View {
         .task {
             await viewModel.loadProject()
             syncTimelineViewModel()
+        }
+        .onChange(of: pendingImportItem) { _, newItem in
+            guard let newItem else { return }
+            pendingImportItem = nil
+            Task {
+                await handlePickedVideo(newItem)
+            }
         }
         .sheet(isPresented: $viewModel.showExportSheet) {
             exportSheet
@@ -606,6 +622,67 @@ struct EditorView: View {
     }
 
     // MARK: - Sync
+
+    /// Whether the preview area should show the "Import Media" empty-state
+    /// overlay. True when the project has no playable source and we are not
+    /// currently loading or showing an error.
+    private var showImportCTA: Bool {
+        viewModel.player == nil
+            && !viewModel.isLoading
+            && viewModel.errorMessage == nil
+            && viewModel.project.sourceVideoPath.isEmpty
+            && viewModel.project.clips.isEmpty
+    }
+
+    /// Centered Import Media button shown over the empty preview area.
+    @ViewBuilder
+    private var importMediaCTA: some View {
+        VStack(spacing: LiquidSpacing.md) {
+            Image(systemName: "film.stack")
+                .font(.system(size: 48))
+                .foregroundStyle(.white.opacity(0.6))
+            Text("This project has no media yet")
+                .font(.headline)
+                .foregroundStyle(.white)
+            PhotosPicker(
+                selection: $pendingImportItem,
+                matching: .videos,
+                photoLibrary: .shared()
+            ) {
+                Label("Import Media", systemImage: "plus")
+                    .font(.headline)
+                    .padding(.horizontal, LiquidSpacing.lg)
+                    .padding(.vertical, LiquidSpacing.sm)
+                    .background(Color.white, in: Capsule())
+                    .foregroundStyle(.black)
+            }
+            .accessibilityLabel("Import media into this project")
+        }
+        .padding(LiquidSpacing.lg)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// Load the picked video's data, write it to a temp file, and hand it to
+    /// EditorViewModel.attachSourceVideo. Removes the temp file after the
+    /// attach completes.
+    private func handlePickedVideo(_ item: PhotosPickerItem) async {
+        do {
+            guard let videoData = try await item.loadTransferable(type: Data.self) else {
+                viewModel.errorMessage = "Could not load the selected video."
+                return
+            }
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("mov")
+            try videoData.write(to: tempURL)
+            defer { try? FileManager.default.removeItem(at: tempURL) }
+
+            await viewModel.attachSourceVideo(from: tempURL)
+            syncTimelineViewModel()
+        } catch {
+            viewModel.errorMessage = "Could not import video: \(error.localizedDescription)"
+        }
+    }
 
     /// Synchronize the timeline view model with the editor's current timeline.
     /// Preserves existing tracks if any, falling back to a single Main Video

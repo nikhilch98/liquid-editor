@@ -391,6 +391,61 @@ final class EditorViewModel {
         return documentsDir.appendingPathComponent(project.sourceVideoPath)
     }
 
+    /// Attach a new source video to the current project from a temporary
+    /// file URL. The file is copied into `Documents/Videos/`, the project's
+    /// `sourceVideoPath` and `durationMicros` fields are updated, the
+    /// updated project is persisted, and `loadProject` is re-invoked so the
+    /// player is refreshed. Used by the empty-project Import CTA and the
+    /// toolbar import button.
+    ///
+    /// The caller is responsible for removing the temporary file after this
+    /// returns (success or failure).
+    func attachSourceVideo(from tempURL: URL, services: ServiceContainer = .shared) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let asset = AVURLAsset(url: tempURL)
+            let duration = try await asset.load(.duration)
+            let videoTracks = try await asset.loadTracks(withMediaType: .video)
+            guard !videoTracks.isEmpty else {
+                throw NSError(domain: "LiquidEditor", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Selected file does not contain a video track."
+                ])
+            }
+
+            let durationMicros = Int64(CMTimeGetSeconds(duration) * 1_000_000)
+
+            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let videosDir = documentsDir.appendingPathComponent("Videos")
+            try FileManager.default.createDirectory(at: videosDir, withIntermediateDirectories: true)
+
+            let ext = tempURL.pathExtension.isEmpty ? "mov" : tempURL.pathExtension
+            let filename = "\(project.id).\(ext)"
+            let destURL = videosDir.appendingPathComponent(filename)
+            if FileManager.default.fileExists(atPath: destURL.path) {
+                try FileManager.default.removeItem(at: destURL)
+            }
+            try FileManager.default.copyItem(at: tempURL, to: destURL)
+
+            let relativePath = "Videos/\(filename)"
+            let updated = project.with(
+                sourceVideoPath: relativePath,
+                durationMicros: durationMicros,
+                modifiedAt: Date()
+            )
+            try await services.repositories.projectRepository.save(updated)
+
+            self.project = updated
+            self.timeline = .empty
+            await loadProject(services: services)
+        } catch {
+            Self.logger.error("attachSourceVideo failed: \(error.localizedDescription, privacy: .public)")
+            errorMessage = "Could not import video: \(error.localizedDescription)"
+            isLoading = false
+        }
+    }
+
     /// Recursively unwrap an `AnyCodableValue` back into a plain JSON-compatible
     /// value so the dictionary can be fed into `TimelineItemDecoder`, which
     /// expects `[String: Any]` as produced by `JSONSerialization`.
