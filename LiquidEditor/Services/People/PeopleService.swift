@@ -232,10 +232,17 @@ actor PeopleService {
                 id: "person_\(index)",
                 boundingBox: pixelFaceBox,
                 confidence: Double(detection.confidence),
-                embedding: [], // Embedding extraction requires OSNet model
+                embedding: [],
                 qualityScore: qualityScore
             ))
         }
+
+        // Appearance embeddings require an OSNet ReID model which is not yet
+        // bundled with the app. Callers that rely on embeddings (duplicate
+        // detection, cross-session Re-ID) will see `embedding == []` and
+        // skip those code paths. Logged once per detection so the gap is
+        // visible in telemetry rather than silent.
+        Self.logger.info("Face embeddings unavailable (OSNet model not loaded); duplicate detection skipped")
 
         return PersonDetectionResult(
             success: true,
