@@ -1,0 +1,11 @@
+# Fixture directory for EndToEndIntegrationTests.
+#
+# This directory is:
+#   - Picked up by xcodegen as a resource folder for the LiquidEditorTests
+#     target (see project.yml).
+#   - Left empty in source control on purpose. `FixtureFactory.swift`
+#     generates `sample_video.mp4` and `sample_audio.wav` at runtime into
+#     the test-process tmp directory, so no binaries are committed.
+#
+# If you drop a `sample_video.mp4` or `sample_audio.wav` here, FixtureFactory
+# will prefer the bundled file over runtime generation.
