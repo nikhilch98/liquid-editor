@@ -39,10 +39,6 @@ actor DraftRepository: DraftRepositoryProtocol {
     private static let metadataFileName = "metadata.json"
     private static let logger = Logger(subsystem: "LiquidEditor", category: "DraftRepository")
 
-    /// Regex for validating project IDs (lowercase hex + hyphens only).
-    private static let validIdPattern = try! NSRegularExpression(
-        pattern: "^[a-f0-9-]+$"
-    )
 
     // MARK: - State
 
@@ -348,14 +344,18 @@ actor DraftRepository: DraftRepositoryProtocol {
         "draft_\(slotIndex).json"
     }
 
-    /// Validates that a project ID matches the expected hex-UUID pattern.
+    /// Validates that a project ID contains only lowercase hex digits and
+    /// hyphens (equivalent to the pattern `^[a-f0-9-]+$`).
     private func validateId(_ id: String) throws {
-        let range = NSRange(id.startIndex..., in: id)
-        guard Self.validIdPattern.firstMatch(in: id, range: range) != nil else {
+        guard !id.isEmpty, id.allSatisfy(Self.isValidIdCharacter) else {
             throw RepositoryError.invalidPath(
                 "Invalid project ID: '\(id)'. Must match ^[a-f0-9-]+$"
             )
         }
+    }
+
+    private static func isValidIdCharacter(_ c: Character) -> Bool {
+        ("0"..."9").contains(c) || ("a"..."f").contains(c) || c == "-"
     }
 
     /// Loads existing metadata or creates an empty one for new projects.
