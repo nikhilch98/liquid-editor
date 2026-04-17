@@ -14,7 +14,21 @@ import os
 /// Uses value semantics (struct), backed by a reference-counted `_Storage` class
 /// for identity-based caching. The underlying `TimelineNode` tree uses structural
 /// sharing — unchanged subtrees are shared between versions.
-struct PersistentTimeline: Sendable, CustomStringConvertible {
+struct PersistentTimeline: Sendable, CustomStringConvertible, Equatable {
+
+    // MARK: - Equatable
+
+    /// Two timelines are considered equal when they share the same backing
+    /// storage (i.e. no mutation has happened since the other was derived).
+    /// Because `PersistentTimeline` uses path-copying, any mutation returns a
+    /// fresh `_Storage` instance, so reference equality is both O(1) and a
+    /// strict subset of structural equality — safe to use as the change
+    /// trigger for SwiftUI's `.onChange`. Two independently-constructed
+    /// timelines with identical content will compare unequal, which is fine
+    /// for observation (it simply re-fires).
+    static func == (lhs: PersistentTimeline, rhs: PersistentTimeline) -> Bool {
+        lhs._storage === rhs._storage
+    }
 
     // MARK: - Storage (Reference Identity for Cache)
 

@@ -309,6 +309,60 @@ final class EditorViewModel {
         Self.logger.debug("Composition rebuilt with \(segments.count, privacy: .public) segment(s)")
     }
 
+    /// Rebuild the composition from the current `timeline` and hot-swap it
+    /// into the playback engine.
+    ///
+    /// Called after any timeline edit (drag, trim, split, delete) so the
+    /// AVPlayer reflects the new state. Safe to call while the view is
+    /// interactive — the rebuild runs async and the hot-swap preserves
+    /// playback rate and seek position.
+    func rebuildComposition() async {
+        guard let engine = playbackEngine else {
+            Self.logger.warning("rebuildComposition called before loadProject wired the engine")
+            return
+        }
+        let segments = segmentsFromCurrentTimeline()
+        await engine.rebuildComposition(segments: segments)
+        Self.logger.debug("Composition rebuilt from timeline with \(segments.count, privacy: .public) segment(s)")
+    }
+
+    /// Convert the current `timeline` into `CompositionSegment`s suitable
+    /// for `PlaybackEngine.rebuildComposition`.
+    ///
+    /// Iterates the timeline in order, accumulating `timelineStartTime`,
+    /// and emits one segment per `VideoClip`. Non-video items (text,
+    /// sticker, gap, etc.) still contribute to the cumulative time so
+    /// later video clips land at the right offset, but they don't become
+    /// composition segments.
+    private func segmentsFromCurrentTimeline() -> [CompositionSegment] {
+        guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return []
+        }
+        let sourceURL = resolveSourceURL(documentsDir: documentsDir)
+
+        var segments: [CompositionSegment] = []
+        var cumulativeMicros: TimeMicros = 0
+
+        for item in timeline.toList() {
+            let itemDuration = item.durationMicroseconds
+            defer { cumulativeMicros += itemDuration }
+
+            if let videoClip = item as? VideoClip, let url = sourceURL {
+                segments.append(CompositionSegment(
+                    clipId: videoClip.id,
+                    assetId: videoClip.mediaAssetId,
+                    assetURL: url,
+                    sourceTimeRange: TimeRange(videoClip.sourceInMicros, videoClip.sourceOutMicros),
+                    timelineStartTime: cumulativeMicros,
+                    playbackSpeed: videoClip.speedSettings?.speedMultiplier ?? 1.0,
+                    volume: 1.0,
+                    trackIndex: 0
+                ))
+            }
+        }
+        return segments
+    }
+
     /// Decodes any existing clips (or falls back to a single source-video
     /// clip) into the in-memory timeline and returns the matching
     /// `CompositionSegment` list.

@@ -171,6 +171,26 @@ struct EditorView: View {
             await viewModel.loadProject()
             syncTimelineViewModel()
         }
+        // Keep EditorViewModel.timeline in lock-step with any edits the user
+        // makes through the TimelineView (drag, trim). This propagates the
+        // mutation back to the single source of truth used for composition
+        // rebuilds and auto-save.
+        .onChange(of: timelineViewModel.timeline) { _, newTimeline in
+            viewModel.timeline = newTimeline
+        }
+        // Rebuild the composition whenever the timeline changes — but defer
+        // the (relatively expensive) AVComposition rebuild until the user
+        // finishes their interactive gesture so dragging and trimming stay
+        // at 60 FPS.
+        .onChange(of: viewModel.timeline) { _, _ in
+            scheduleCompositionRebuildIfIdle()
+        }
+        .onChange(of: timelineViewModel.isDragging) { _, isDragging in
+            if !isDragging { scheduleCompositionRebuildIfIdle() }
+        }
+        .onChange(of: timelineViewModel.isTrimming) { _, isTrimming in
+            if !isTrimming { scheduleCompositionRebuildIfIdle() }
+        }
         .onChange(of: pendingImportItem) { _, newItem in
             guard let newItem else { return }
             pendingImportItem = nil
@@ -626,6 +646,21 @@ struct EditorView: View {
     }
 
     // MARK: - Sync
+
+    /// Rebuild the playback composition unless the user is mid-gesture.
+    /// Composition rebuilds re-decode source assets, which is expensive
+    /// compared to a SwiftUI redraw; running it every frame of a drag would
+    /// drop the timeline well below 60 FPS. Deferring until the gesture
+    /// ends keeps scrubbing smooth while still producing an up-to-date
+    /// AVPlayer by the time the user lifts their finger.
+    private func scheduleCompositionRebuildIfIdle() {
+        guard !timelineViewModel.isDragging,
+              !timelineViewModel.isTrimming,
+              !timelineViewModel.isScrubbingTimeline else {
+            return
+        }
+        Task { await viewModel.rebuildComposition() }
+    }
 
     /// Whether the preview area should show the "Import Media" empty-state
     /// overlay. True when the project has no playable source and we are not
