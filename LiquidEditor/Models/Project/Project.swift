@@ -165,6 +165,10 @@ struct Project: Codable, Equatable, Hashable, Sendable, Identifiable {
         overlayStartTimesMicros: [String: Int64] = [:],
         multiTrackStateJson: [String: AnyCodableValue]? = nil
     ) {
+        precondition(!id.isEmpty, "Project id must not be empty")
+        precondition(durationMicros >= 0, "Project durationMicros must be non-negative, got \(durationMicros)")
+        precondition(playbackSpeed > 0, "Project playbackSpeed must be positive, got \(playbackSpeed)")
+
         self.id = id
         self.name = name
         self.sourceVideoPath = sourceVideoPath

@@ -595,7 +595,8 @@ struct FileSizeEstimatorLegacyTests {
     func audioSizeWAV() {
         let bytes = FileSizeEstimator.estimateAudioSizeBytes(codec: .wav, bitrate: 0, duration: 10.0)
         // PCM: 48000 * 16 * 2 / 8 * 10 * 1.01
-        let expected = Int((48000.0 * 16.0 * 2.0 / 8.0 * 10.0 * 1.01).rounded())
+        let pcmBytesPerSecond: Double = 48000.0 * 16.0 * 2.0 / 8.0
+        let expected = Int((pcmBytesPerSecond * 10.0 * 1.01).rounded())
         #expect(bytes == expected)
     }
 

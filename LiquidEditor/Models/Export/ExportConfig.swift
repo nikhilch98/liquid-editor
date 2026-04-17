@@ -388,6 +388,18 @@ struct ExportConfig: Codable, Equatable, Hashable, Sendable {
         audioOnly: Bool = false,
         socialPreset: SocialMediaPreset? = nil
     ) {
+        precondition(fps > 0, "ExportConfig fps must be positive, got \(fps)")
+        precondition(bitrateMbps >= 0, "ExportConfig bitrateMbps must be non-negative, got \(bitrateMbps)")
+        precondition(audioBitrate >= 0, "ExportConfig audioBitrate must be non-negative, got \(audioBitrate)")
+        if resolution == .custom {
+            if let w = customWidth {
+                precondition(w > 0, "ExportConfig customWidth must be positive when resolution is .custom, got \(w)")
+            }
+            if let h = customHeight {
+                precondition(h > 0, "ExportConfig customHeight must be positive when resolution is .custom, got \(h)")
+            }
+        }
+
         self.resolution = resolution
         self.customWidth = customWidth
         self.customHeight = customHeight

@@ -21,6 +21,9 @@ struct PanScanRegion: Codable, Equatable, Hashable, Sendable {
     )
 
     init(cropRect: CGRect, rotation: Double = 0.0) {
+        precondition(cropRect.width > 0, "PanScanRegion cropRect width must be positive, got \(cropRect.width)")
+        precondition(cropRect.height > 0, "PanScanRegion cropRect height must be positive, got \(cropRect.height)")
+
         self.cropRect = cropRect
         self.rotation = rotation
     }

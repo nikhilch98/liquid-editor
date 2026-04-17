@@ -362,6 +362,10 @@ struct Mask: Codable, Equatable, Hashable, Sendable {
         saturationMin: Double? = nil,
         saturationMax: Double? = nil
     ) {
+        precondition(!id.isEmpty, "Mask id must not be empty")
+        precondition(feather >= 0.0, "Mask feather must be non-negative, got \(feather)")
+        precondition(opacity >= 0.0 && opacity <= 1.0, "Mask opacity must be in 0...1, got \(opacity)")
+
         // Validate type-specific required fields.
         switch type {
         case .rectangle, .ellipse:
