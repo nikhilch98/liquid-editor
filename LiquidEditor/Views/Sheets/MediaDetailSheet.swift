@@ -458,7 +458,7 @@ struct MediaTagFlowLayout: Layout {
             fileSize: 256_000_000,
             importedAt: Date(),
             colorTags: [.blue, .green],
-            textTags: ["sunset", "beach"],
+            textTags: [],
             colorSpace: "Rec. 2020 HLG",
             bitDepth: 10,
             importSource: .photoLibrary

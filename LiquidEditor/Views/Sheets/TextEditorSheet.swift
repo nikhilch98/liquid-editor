@@ -109,7 +109,15 @@ struct TextEditorSheet: View {
     let onApply: (TextClip) -> Void
     private let existingClip: TextClip?
 
-    private let tabs = ["Style", "Animation", "Position", "Templates"]
+    /// Segmented tab sections shown below the preview in the editor panel.
+    enum TextEditorTab: String, CaseIterable {
+        case style = "Style"
+        case animation = "Animation"
+        case position = "Position"
+        case templates = "Templates"
+    }
+
+    private let tabs = TextEditorTab.allCases
 
     // MARK: - Color Presets
 
@@ -329,7 +337,7 @@ struct TextEditorSheet: View {
 
             Picker("Tab", selection: $selectedTab) {
                 ForEach(0..<tabs.count, id: \.self) { index in
-                    Text(tabs[index]).tag(index)
+                    Text(tabs[index].rawValue).tag(index)
                 }
             }
             .pickerStyle(.segmented)

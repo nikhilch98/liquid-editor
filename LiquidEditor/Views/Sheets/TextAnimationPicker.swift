@@ -135,10 +135,21 @@ struct TextAnimationPicker: View {
     /// Total clip duration in microseconds (for clamping).
     let clipDurationMicros: Int64
 
+    /// Phases presented in the segmented control.
+    ///
+    /// Declaration order is load-bearing: phase index (`phaseIndex`) is
+    /// `AnimationPhase.allCases` index, and existing call sites rely on
+    /// `0 == enter`, `1 == exit`, `2 == sustain`.
+    enum AnimationPhase: String, CaseIterable {
+        case enter = "Enter"
+        case exit = "Exit"
+        case sustain = "Sustain"
+    }
+
     /// Currently selected phase index: 0=Enter, 1=Exit, 2=Sustain.
     @State private var phaseIndex = 0
 
-    private static let phaseLabels = ["Enter", "Exit", "Sustain"]
+    private static let phaseLabels = AnimationPhase.allCases.map(\.rawValue)
 
     // MARK: - Body
 

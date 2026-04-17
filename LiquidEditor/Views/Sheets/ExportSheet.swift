@@ -151,8 +151,19 @@ struct ExportSheet: View {
     @State private var isDebugSheetPresented = false
 
     // Resolution and FPS stop definitions
-    private let resolutions = [540, 720, 1080, 2700, 3840]
-    private let resolutionLabels = ["540p", "720p", "1080p", "2.7K", "4K"]
+    /// Resolution stops available on the manual resolution slider.
+    /// Each entry pairs a pixel height with its display label. Stored as a
+    /// static constant so pixels and labels cannot drift out of sync.
+    private static let resolutionStops: [(pixels: Int, label: String)] = [
+        (540, "540p"),
+        (720, "720p"),
+        (1080, "1080p"),
+        (2700, "2.7K"),
+        (3840, "4K"),
+    ]
+
+    private let resolutions = Self.resolutionStops.map(\.pixels)
+    private let resolutionLabels = Self.resolutionStops.map(\.label)
     private let fpsOptions = [24, 25, 30, 50, 60]
 
     // MARK: - Constants
