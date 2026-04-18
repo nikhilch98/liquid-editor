@@ -18,9 +18,10 @@
 
 ## 1. Summary & Critical Path
 
-- **Epics:** 15 (Epic 0 Decisions → Epic 14 Integration).
-- **Tasks:** 142 total.
-- **Total estimated effort:** ~180 engineer-days.
+- **Epics:** 17 (Epic 0 Decisions → Epic 16 iPad Platform Extras).
+- **Tasks:** 174 total.
+- **Total estimated effort:** ~220 engineer-days.
+- **Revision 2 (2026-04-18):** expanded from 142 to 174 after cross-referencing every spec section — added Domain Models epic, iPad Platform Extras epic, export preset/destination/estimator tasks, creative engine tasks (transition shaders, FX shaders, scope compute), Library CRUD tasks (rename/duplicate/share/collections/starred/trash), timeline extras (track mute/lock/header/fullscreen), and platform foundation (motion audit, color scheme, orientation, localization, launch screen).
 - **With 4 parallel streams:** critical path is **~7 weeks** (35 working days).
 - **With 2 parallel streams:** ~10–12 weeks.
 
@@ -100,6 +101,11 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F0-1 | Audit `LiquidColors.swift` vs. §2.1 table; add `Canvas.elev`, `Accent.success`, `Accent.warning`; verify `amberGlow`, `destructive`, `Timeline.*` | M | — | §2.1, §11.1 | A | ○ |
 | F0-2 | Build `HapticService` wrapper honoring the §2.4 table + master toggle; inject via `ServiceContainer` | M | F0-1 | §2.4, §10.6 | A | ○ |
 | F0-3 | Add `os_signpost` instrumentation for scrub / export / waveform / scope; surface to `PERFORMANCE.md` checklist | S | — | §10.7 | A | ○ |
+| F0-4 | Audit `LiquidMotion.swift`: verify `snap`, `smooth`, `bounce`, `glide`, `reduced` exist; add any missing per §2.3 | S | — | §2.3 | A | ○ |
+| F0-5 | Set `.preferredColorScheme(.dark)` at app root; purge any Light Mode assumptions from existing code | S | — | §2.8 | A | ○ |
+| F0-6 | Per-screen orientation-lock infrastructure: `UIViewController`-host wrapper + SwiftUI modifier; Editor allows landscape, Library/Export portrait-only | M | — | §2.7 | A | ○ |
+| F0-7 | Localization pipeline: `Localizable.xcstrings` + helper `L("…")`; all user-facing strings use `String(localized:)` | M | — | global | A | ○ |
+| F0-8 | Launch screen + status-bar appearance (dark canvas, amber accent mark) | S | F0-5 | global | A | ○ |
 
 ### Epic 1 — Shared Primitives
 
@@ -120,6 +126,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | P1-13 | `RippleEditController` — central handler for ripple vs. non-ripple edits | M | D0-5 | §10.3 | B | ○ |
 | P1-14 | Standardize `ConfirmationDialog` pattern (title / destructive action / cancel / iPad-anchor / iPhone-sheet) | S | F0-1 | §9.10 | A | ○ |
 | P1-15 | `PermissionPrimerSheet` generic template (hero + rationale + grant + “not now”) | S | F0-1 | §9.13 | A | ○ |
+| P1-16 | `SnapshotService`: capture thumbnail + diff-label at every committed edit; backing store for §9.8 history scrubber | L | D0-4 | §9.8 | A | ○ |
 
 ### Epic 2 — Screen Skeletons
 
@@ -136,6 +143,12 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | S2-9 | Export screen (iPad): left preview+meta, right settings, dest grid, full-width CTA | M | S2-8 | §5.3 | C | ○ |
 | S2-10 | Export state model: idle / exporting / success / error / cancelled + success-sheet | L | S2-8 | §5.4 | C | ○ |
 | S2-11 | Export queue pill + queue sheet | M | S2-10, P1-6 | §5.5 | C | ○ |
+| S2-12 | Export preset definitions: Quick / Social / Pro / Custom → resolution / fps / format / bitrate mapping | S | S2-10 | §5.2, §5.3 | C | ○ |
+| S2-13 | Export destination integrations: Photos (`PHPhotoLibrary`), Files (`UIDocumentPicker`), AirDrop / Share (`UIActivityViewController`) | L | S2-10 | §5.3 | C | ○ |
+| S2-14 | Live size + bitrate estimator (drives CTA label, meta card on iPad); recomputes on every preset/toggle change | M | S2-10, S2-12 | §5.3 | C | ○ |
+| S2-15 | Export error log + “Copy log” action (pasteboard) | S | S2-10 | §5.4 | C | ○ |
+| S2-16 | Background export: `BGProcessingTaskRequest` + `UNUserNotificationCenter` for completion toast when backgrounded | L | S2-10 | §5.5 | C | ○ |
+| S2-17 | Library template system: seeded `Template` model + Templates tab feed + “New from template” flow | L | S2-5, S2-6 | §4.1, §4.2 | C | ○ |
 
 ### Epic 3 — Editor Tab Wiring
 
@@ -174,7 +187,10 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | C5-6 | **Color Wheels Panel** (3 wheels + Temp/Tint/Sat dual-gradient sliders) | L | P1-10 | §8.5 | D | ○ |
 | C5-7 | **Curves Editor** (channel seg + interactive canvas + presets + mini histogram overlay + Pencil support) | L | P1-1 | §8.6 | D | ○ |
 | C5-8 | **HSL Panel** (8 channel chips + H/S/L gradient sliders + eyedropper) | M | P1-1 | §8.7 | D | ○ |
-| C5-9 | **Scopes Panel** (Waveform / Histogram / Vectorscope / RGB Parade; 30 Hz sampling; iPad dock-or-float) | L | F0-3 | §8.8 | D | ○ |
+| C5-9 | **Scopes Panel** (Waveform / Histogram / Vectorscope / RGB Parade; 30 Hz sampling; iPad dock-or-float) | L | F0-3, C5-12 | §8.8 | D | ○ |
+| C5-10 | **Transition shader/animation implementations** (Fade / Dissolve / Zoom / Slide-L / Slide-R / Flip / Spin / Glitch / Morph) — Metal shaders or `AVMutableVideoCompositionInstruction` | L | — | §8.2 | D | ○ |
+| C5-11 | **Individual FX implementations** (Glitch / Zoom-blur / Mirror / Prism / VHS / Bokeh / Shake / Neon / Chroma hue-shift) — Metal + CIFilter chains | XL | — | §8.3 | D | ○ |
+| C5-12 | **Scope compute engines**: luma-waveform, RGB histogram, vectorscope (I/Q polar), RGB parade; sampled via `ColorGradingPipeline` taps | L | F0-3 | §8.8, §10.7 | D | ○ |
 
 ### Epic 6 — Supporting Flows
 
@@ -189,6 +205,13 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F6-7 | **Onboarding Sheet** (3 pages + permission primers + skip + re-entry) | M | P1-15 | §9.12 | E | ○ |
 | F6-8 | **Global import progress pill** + expanded per-item sheet | M | P1-6 | §9.7 | E | ○ |
 | F6-9 | Permission flows wiring (Photos limited + Mic + Camera + Notifications + Files) | M | P1-15 | §9.13 | E | ○ |
+| F6-10 | Project rename flow (inline on card via long-press → sheet; inline header in Project Settings) | M | S2-7, F6-4 | §4.4, §9.5 | C | ○ |
+| F6-11 | Project duplicate logic: deep-copy timeline + assets + grade/effect stacks; new ID; “… copy” name | M | M15-1, M15-2, M15-3 | §4.4 | C | ○ |
+| F6-12 | Project share sheet wiring: share project file or last-export via `UIActivityViewController` | S | — | §4.4 | C | ○ |
+| F6-13 | Collections CRUD + move-to-collection action (sidebar list + assign card to collection) | M | S2-6 | §4.2, §4.4 | C | ○ |
+| F6-14 | Starred / favorite projects: star toggle on card context menu + sidebar filter | S | S2-7 | §4.2 | C | ○ |
+| F6-15 | Trash flow: 30-day soft-delete retention + Restore + Empty Trash (destructive + confirmation) | M | P1-14 | §4.2, §9.10 | C | ○ |
+| F6-16 | Media relink flow: detect missing assets on project open; Inspector row “Locate…” → file picker | M | S2-4 | §3.4 | C | ○ |
 
 ### Epic 7 — Timeline Core Enhancements
 
@@ -203,6 +226,10 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | T7-7 | Ripple delete wired through `RippleEditController` | S | P1-13 | §10.3 | B | ○ |
 | T7-8 | Track collapse/expand swipe | S | S2-1 | §10.3 | B | ○ |
 | T7-9 | Scrub-with-audio toggle + playhead-drag behavior | S | S2-1 | §10.3 | B | ○ |
+| T7-10 | Track mute + lock toggles on track header | S | S2-1 | §3.1, §10.3 | B | ○ |
+| T7-11 | Track header long-press menu (Rename / Mute all / Lock / Delete track) | S | P1-5, T7-10 | §10.3 | B | ○ |
+| T7-12 | Fullscreen preview mode (F key / ⛶ button; pinch-zoom + pan + swipe-down dismiss) | M | S2-1 | §3.1, §10.5 | B | ○ |
+| T7-13 | Preserve existing Comparison mode toggle in both fullscreen + inline preview | S | T7-12 | existing feature | B | ○ |
 
 ### Epic 8 — Small Tools (leaf controls, highly parallel)
 
@@ -222,6 +249,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | TD8-12 | Temp/Tint/Exposure/Contrast/Highlights/Shadows/Sat/Vibrance dual-slider rows | M | P1-1 | §6.5 | D | ○ |
 | TD8-13 | Reverse + Freeze-frame render actions + progress UI | M | S2-4 | §3.4, §6.1 | B | ○ |
 | TD8-14 | Animation (in/out/loop) preset chips for clip animation tool | S | C5-2 | §6.1 | D | ○ |
+| TD8-15 | Tool-rail customization sheet (“Edit rail…” long-press menu; pick 6 of N tools; per-project persistence) | M | P1-3, M15-5 | §10.4 | D | ○ |
 
 ### Epic 9 — Inspector Matrix (iPad right-rail sections)
 
@@ -304,6 +332,24 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | I14-5 | Codebase analysis update (`analysis/INDEX.md` + per-file) for all modified / new files | L | I14-2 | CLAUDE.md §"Codebase Analysis System" | A | ○ |
 | I14-6 | xcodegen regenerate + full `xcodebuild build` + `xcodebuild test` green run on iPhone + iPad sims | S | I14-2 | CLAUDE.md §"Success Criteria" | A | ○ |
 
+### Epic 15 — Domain Models (data-layer work, highly parallel; no UI dependencies)
+
+| ID | Title | Size | Depends | Spec | Stream | Status |
+|---|---|---|---|---|---|---|
+| M15-1 | `ClipEffectStack` model: ordered `[AppliedEffect]` per clip with intensity + bypass; `Codable`; JSON-persisted in project file | M | — | §7.9, §8.3 | B | ○ |
+| M15-2 | `ClipColorGrade` model: lift/gamma/gain + curves + HSL + temp/tint/exp/contrast/hi/lo/sat/vibrance; `Codable` | M | — | §8.5, §8.6, §8.7 | B | ○ |
+| M15-3 | Keyframe persistence: property-keyed map `[KeyframeProperty: [Keyframe]]` on clip; linear/held/cubic-bezier interpolation | M | — | §7.2, §10.2 | B | ○ |
+| M15-4 | Text-clip model expansion: add stroke (color+width), shadow (offset+blur+α), background (fill/bubble/blur), animation (in+out+loop refs) fields | S | — | §8.1 | D | ○ |
+| M15-5 | Per-project UI state: `ProjectUIState` codable blob (tool-rail config, last zoom bucket, last-selected tool, scope dock state, tab index) | M | — | §10.4 | A | ○ |
+
+### Epic 16 — iPad Platform Extras
+
+| ID | Title | Size | Depends | Spec | Stream | Status |
+|---|---|---|---|---|---|---|
+| IP16-1 | Pointer hover effects: `.pointerStyle(.link)` on tappable, `.horizontalText` on trim handles, `.grabIdle` on timeline scroll, `.rectangle` on lasso area | M | S2-2 | §10.6 | A | ○ |
+| IP16-2 | System drag-drop receiver: `.onDrop(of:)` on timeline + media browser for Photos, Files, Safari URLs; type coercion + import pipeline | M | F6-1 | §9.7 | A | ○ |
+| IP16-3 | Multitasking: verify Slide Over / Split View / Stage Manager layouts; auto-collapse to compact when width < 640pt | M | S2-2, S2-6, S2-9 | §2.6 | A | ○ |
+
 ---
 
 ## 6. Kickoff Order (day 1)
@@ -313,10 +359,16 @@ All of these can start **simultaneously on day 1**:
 1. **D0-1 through D0-6** — product/design owners. These unblock the largest chunks; ideally resolved within 2 days.
 2. **F0-1** (token audit) — stream A. Everything visual needs it.
 3. **F0-3** (signposts) — stream A. Decoupled.
-4. **P1-11** (audio waveform primitive) — stream B. Decoupled; lives on the critical path.
-5. **P1-10** (color wheel primitive) — stream D. Decoupled; feeds C5-6.
+4. **F0-4** (motion-token audit) — stream A. Decoupled.
+5. **F0-5** (dark color scheme) — stream A. Decoupled.
+6. **F0-7** (localization pipeline) — stream A. Decoupled; should land early so all new copy lands localized from day 1.
+7. **P1-11** (audio waveform primitive) — stream B. Decoupled; lives on the critical path.
+8. **P1-10** (color wheel primitive) — stream D. Decoupled; feeds C5-6.
+9. **M15-1, M15-2, M15-3** (domain models) — stream B. Fully decoupled from UI; parallelize.
+10. **M15-4, M15-5** (text model expansion, project UI state) — streams D / A.
+11. **C5-10** (transition shaders), **C5-11** (FX shaders) — stream D. Decoupled; XL items that should start earliest.
 
-After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-15) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
+After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-16) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
 
 ---
 
@@ -339,23 +391,25 @@ Resolve these decisions ASAP; every day of delay slides the schedule by the same
 
 Update the per-task `Status` column (`○ → ◔ → ●`) as work progresses. Quick counters to track manually:
 
-- Epic 0: 0 / 9 done
-- Epic 1: 0 / 15 done
-- Epic 2: 0 / 11 done
+- Epic 0: 0 / 14 done
+- Epic 1: 0 / 16 done
+- Epic 2: 0 / 17 done
 - Epic 3: 0 / 6 done
 - Epic 4: 0 / 9 done
-- Epic 5: 0 / 9 done
-- Epic 6: 0 / 9 done
-- Epic 7: 0 / 9 done
-- Epic 8: 0 / 14 done
+- Epic 5: 0 / 12 done
+- Epic 6: 0 / 16 done
+- Epic 7: 0 / 13 done
+- Epic 8: 0 / 15 done
 - Epic 9: 0 / 13 done
 - Epic 10: 0 / 11 done
 - Epic 11: 0 / 6 done
 - Epic 12: 0 / 7 done
 - Epic 13: 0 / 8 done
 - Epic 14: 0 / 6 done
+- Epic 15: 0 / 5 done
+- Epic 16: 0 / 3 done
 
-**Total: 0 / 142 tasks done**
+**Total: 0 / 174 tasks done**
 
 ---
 
