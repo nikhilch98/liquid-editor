@@ -223,6 +223,12 @@ struct ClipView: View {
         )
         .animation(.easeInOut(duration: 0.15), value: isSelected)
         .animation(.easeInOut(duration: 0.15), value: isDragging)
+        // IP16-1: iPad pointer hover — clips lift on hover.
+        .pointerHover(.lift)
+        // IP16-5: drag-out — wraps the clip in a ClipTransfer so users
+        // can drag a clip into Files / Messages / another Liquid
+        // Editor window.
+        .dragOutClip(item)
         // T7-1: double-tap first (Trim Precision entry point); single-tap
         // falls through to selection + HapticService.trigger(.timelineScrub).
         .onTapGesture(count: 2) {

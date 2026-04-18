@@ -46,6 +46,12 @@ struct ProjectCardView: View {
         }
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isPressed)
+        // IP16-1: iPad pointer hover — project cards respond with a
+        // subtle highlight on hover. No-op on iPhone.
+        .pointerHover(.highlight)
+        // IP16-5: drag-out — users can drag the card into another
+        // Liquid Editor window or a Files-compatible drop target.
+        .dragOutProject(project)
         .contextMenu {
             contextMenuItems
         }
