@@ -99,6 +99,58 @@ final class HapticService {
         preferences.set(enabled, forKey: HapticService.hapticsEnabledKey)
     }
 
+    // MARK: - Premium-UI play(_:) + throttle
+
+    /// Minimum interval between two plays of the same `HapticKind`.
+    /// Lower than this gets swallowed to prevent scrub-drag spam.
+    private static let throttleInterval: TimeInterval = 0.040
+
+    /// Last-fire timestamp per kind. Cleared by `resetThrottleForTesting()`.
+    private var lastFireDates: [HapticKind: Date] = [:]
+
+    /// Play a premium-UI haptic. Does nothing if `isEnabled` is false or
+    /// if the same kind fired within the throttle window.
+    func play(_ kind: HapticKind) {
+        _ = playForTesting(kind)
+    }
+
+    /// Test-visible variant of ``play(_:)``. Returns whether the feedback
+    /// actually fired (true) or was suppressed by the throttle / disabled
+    /// state (false). Not part of the production API — only meant for
+    /// unit tests.
+    @discardableResult
+    func playForTesting(_ kind: HapticKind) -> Bool {
+        guard isEnabled else { return false }
+
+        let now = Date()
+        if let last = lastFireDates[kind],
+           now.timeIntervalSince(last) < Self.throttleInterval {
+            return false
+        }
+        lastFireDates[kind] = now
+
+        switch kind.feedbackStyle {
+        case .lightImpact:
+            lightImpactGenerator.impactOccurred()
+        case .mediumImpact:
+            mediumImpactGenerator.impactOccurred()
+        case .heavyImpact:
+            heavyImpactGenerator.impactOccurred()
+        case .selection:
+            selectionGenerator.selectionChanged()
+        case .notification:
+            if let t = kind.notificationType {
+                notificationGenerator.notificationOccurred(t)
+            }
+        }
+        return true
+    }
+
+    /// Reset the throttle window. Test-only helper.
+    func resetThrottleForTesting() {
+        lastFireDates.removeAll()
+    }
+
     // MARK: - Trigger
 
     /// Trigger a haptic feedback event of the specified type.
@@ -196,4 +248,47 @@ enum HapticFeedbackStyle: String, Sendable, CaseIterable {
     case heavyImpact
     case selection
     case notification
+}
+
+// MARK: - HapticKind (2026-04-18 premium UI redesign)
+
+/// Premium-UI haptic vocabulary added for the 2026-04-18 redesign.
+/// Consumers use this via `HapticService.shared.play(.<kind>)`.
+/// The legacy `EditorHapticType` remains for views not yet on the new
+/// design system.
+enum HapticKind: String, CaseIterable, Sendable {
+    case tapPrimary
+    case tapSecondary
+    case selection
+    case pickup
+    case drop
+    case boundary
+    case success
+    case warning
+    case error
+
+    /// The UIKit feedback style each kind resolves to.
+    var feedbackStyle: HapticFeedbackStyle {
+        switch self {
+        case .tapPrimary:   .mediumImpact
+        case .tapSecondary: .lightImpact
+        case .selection:    .selection
+        case .pickup:       .mediumImpact
+        case .drop:         .lightImpact
+        case .boundary:     .heavyImpact
+        case .success:      .notification
+        case .warning:      .notification
+        case .error:        .notification
+        }
+    }
+
+    /// Notification generator sub-style (only meaningful for notification kinds).
+    var notificationType: UINotificationFeedbackGenerator.FeedbackType? {
+        switch self {
+        case .success: .success
+        case .warning: .warning
+        case .error:   .error
+        default: nil
+        }
+    }
 }
