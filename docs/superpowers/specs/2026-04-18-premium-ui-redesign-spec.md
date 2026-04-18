@@ -229,6 +229,43 @@ Multiple exports allowed. While one runs, tapping Export on another queues it; a
 
 **Export source:** always the original media. Proxies (§10.9) are for playback only and are never used as an export source. If an original is missing, export surfaces a blocking error and routes through the media-relink flow (§3.4 / F6-16) before retry.
 
+### 5.6 Custom Export Preset Editor
+
+**Entry:** Preset segmented control → **Custom** → **Customize…** inline link. On iPad, opens as a large-detent sheet alongside the ring preview so the user sees estimate changes live; on iPhone, full-screen.
+
+**Form sections:**
+
+1. **Preset header** — name input (for save-as) + amber **Save preset** / tertiary **Save as new…** / destructive **Delete preset** (if editing a named preset).
+2. **Video**
+   - Resolution: preset chips (720p / 1080p / 2K / 4K) + **Custom…** opens numeric W×H inputs.
+   - Frame rate: 24 / 25 / 30 / 50 / 60 / 120 chips + **Custom…** numeric.
+   - Codec: **H.264** / **HEVC (H.265)** / **ProRes** / **ProRes 422 HQ** chips.
+   - Container: MP4 / MOV segmented.
+   - Profile + Level (H.264/HEVC only): Baseline / Main / High + numeric level.
+   - Bitrate mode: CBR / VBR / ABR segmented; **Target** numeric + **Max** numeric.
+   - Keyframe interval (sec): numeric stepper.
+   - B-frames: toggle.
+3. **Audio**
+   - Codec: AAC / AAC-LC / ALAC.
+   - Bitrate: 128 / 192 / 256 / 320 kbps chips + **Custom…**.
+   - Sample rate: 44.1 / 48 / 96 kHz.
+   - Channels: Stereo / Mono.
+4. **Color**
+   - Color space: Rec. 709 / DCI-P3 / Rec. 2020 segmented.
+   - HDR profile: SDR / HLG / HDR10 (PQ) / Dolby Vision chips (only valid options for the selected codec are enabled).
+   - Pixel format: 8-bit / 10-bit / 12-bit (bounded by codec choice).
+5. **Advanced**
+   - Loop-safe (seamless) toggle (shared with §5.2).
+   - Metadata: include location / include device / include app-attribution toggles.
+   - Two-pass encoding: toggle.
+   - Hardware acceleration: auto / force-hardware / force-software.
+
+**Saved presets** appear in a “Saved” section of the top preset segmented control (alongside Quick / Social / Pro / Custom). Swipe-to-delete or tap-to-edit.
+
+**Validation:** invalid combinations (e.g., HDR10 on H.264 8-bit) surface a red banner at the top of the editor with a “Fix” link that auto-picks valid defaults.
+
+**Estimate:** the live size/bitrate estimator (S2-14) recomputes on every change; “Estimated size ≈ XX MB” pinned above the Save button.
+
 ---
 
 ## 6. Editor Tab Drill-Downs
@@ -241,16 +278,18 @@ Multiple exports allowed. While one runs, tapping Export on another queues it; a
 | Trim | full mode (§7.3) | — |
 | Speed | yes | Presets (0.25×/0.5×/1×/2×/Curve…), rate slider, preserve-pitch. |
 | Volume | yes | dB, fade, Mute/Duck/Denoise. |
-| Duplicate / Copy / Delete | no | Immediate (Delete confirms per §2.2). |
+| Duplicate / Copy / Cut / Paste / Delete | no | Immediate (Delete + Cut confirm per §2.2). |
 | Reverse / Freeze frame | progress | Amber bar on clip; tap-to-cancel. |
 | Replace | full mode | Opens Media Picker (§9.1). |
+| Group / Ungroup | no | See §7.10. |
+| Transform (Flip / Rotate / Crop / Blend) | inline (§7.12) | Shared with Inspector on iPad. |
 | Keyframes | inline (§7.2) | — |
 | Animation | yes | Preset chips (§8.1.3 list). |
 | Mask | full mode (§7.5) | — |
 
 ### 6.2 Audio tab
 
-Music │ SFX │ Record (→ §9.2) │ Extract │ Volume │ **Beat detect** (§7.6) │ EQ │ Pitch │ **Auto-mix** (§7.7).
+Music │ SFX │ Record (→ §9.2) │ Extract │ Volume │ **Pan** (§7.12) │ **Normalize** (§7.12) │ **Beat detect** (§7.6) │ EQ │ Pitch │ **Auto-mix** (§7.7).
 
 ### 6.3 Text tab
 
@@ -342,6 +381,60 @@ Preset │ LUT (→ §8.4) │ Wheels (→ §8.5) │ **Curves** (§8.6) │ Tem
 - Sliders: Tolerance / Softness / Spill suppression / Edge thin.
 - Toggles: Show alpha matte / Show holdout / Fill behind (color-picker if on).
 - Action: **Refine…** opens Mask editor (§7.5) in refine mode.
+
+### 7.10 Clip Grouping / Compound Clips
+
+- **Entry:** select 2+ clips (lasso or shift-tap) → context menu → **Group** (⌘G).
+- Grouped clips move / trim / delete / copy / duplicate as a single unit. Visual: a 2px amber bracket outlines the group with a group-label chip “Group · 3 clips” at top-left; individual clips keep their own styling inside.
+- **Enter group** via double-tap or context “Edit group”: the group’s clips become individually selectable; all other clips dim to 40%; a breadcrumb “Project › Group” appears top-left.
+- **Exit group** via Escape (iPad), swipe-down (iPhone), or tap breadcrumb root.
+- **Ungroup** (context menu, ⇧⌘G): dissolves the group; inner clips remain in place.
+- **Nesting:** groups may contain groups; up to 5 levels deep.
+- **Data model:** `ClipGroup { id, name, memberIDs, color }` lives alongside `Clip` in `PersistentTimeline`. Grouping does **not** collapse the members into one render — each member renders independently. (True compound clips with flattened composition are deferred.)
+- **Effects on a group:** applying a color grade, effect, mask, or keyframes to a group applies to the group as a layer rendered above member clips; intensity / bypass per-group.
+
+### 7.11 Timeline Operations Catalog
+
+All operations shown here are first-class timeline commands with keyboard shortcuts (§10.5), context-menu entries (§9.4), and undoable via §9.8.
+
+| Operation | Trigger | Behavior |
+|---|---|---|
+| **Select** | tap clip | Single; populates Inspector. |
+| **Multi-select** | shift-tap (iPad) / lasso (track empty area) | Adds to selection; Inspector shows consistent-only props with “Mixed” for inconsistent. |
+| **Select all on track** | long-press track header → “Select all clips” | — |
+| **Select all at playhead** | ⌘A (iPad) | Selects every clip intersecting the playhead across all tracks. |
+| **Select forward / backward from playhead** | context menu | Everything after / before the playhead. |
+| **Deselect all** | Escape / tap empty area | — |
+| **Copy / Cut / Paste** | ⌘C / ⌘X / ⌘V | Cross-project paste supported (T7-14); paste drops at playhead. |
+| **Duplicate** | ⌘D / context | Duplicated clip inserted immediately after source. |
+| **Delete** | ⌦ / context | Per ripple-delete default (D0-5); non-ripple leaves a gap. |
+| **Ripple-delete** | ⇧⌦ or toggle on | Deletes + closes gap regardless of default. |
+| **Collapse gap** | context on empty track region | Removes empty space; all clips after shift left. |
+| **Split at playhead** | S / ⌘S / context | Cuts clip under playhead; Split-all-tracks with ⇧S. |
+| **Trim** | drag edge / Trim tool (§7.3) | — |
+| **Slip / Roll / Slide** | Trim Precision chips (§7.3) | See T7-18. |
+| **Nudge ±1 frame** | ⌥ ← / ⌥ → with clip selected | Shifts selected clip(s). |
+| **Nudge ±1 second** | ⌥⇧ ← / ⌥⇧ → | — |
+| **Insert mode / Overwrite mode** | I key toggle or transport segmented | Insert pushes existing clips forward at playhead; Overwrite replaces content under playhead. |
+| **Replace** | Replace tool → Media Picker | Keeps duration + effects, swaps source. |
+| **Group / Ungroup** | ⌘G / ⇧⌘G | See §7.10. |
+| **Bring to front / Send to back** | context on overlay clip | Reorders z-index within overlay track (only relevant when multiple overlay clips overlap). |
+| **Reverse / Freeze frame** | Edit tab tools | Background render with progress (see TD8-13). |
+| **Detach audio** | context → “Extract audio” | Same as TD8-4. |
+| **Zoom to fit / Zoom to selection** | `\` / ⌘⇧0 | Timeline zooms to show entire project or selected range. |
+| **Auto-follow playhead** | toggle in transport | Scrolls timeline to keep playhead in view during playback. |
+
+### 7.12 Per-Clip Transform & Blend Operations
+
+Live in the Inspector Transform section (iPad) or Edit-tab “Transform” sub-panel (iPhone).
+
+- **Flip horizontal** / **Flip vertical** — one-tap toggles.
+- **Quick rotate** — 0° / 90° / 180° / 270° segmented. For free rotation, use the Inspector Transform row (§10.2).
+- **Crop** — simple rect crop distinct from Mask (§7.5); top / right / bottom / left numeric fields + drag-handles on preview.
+- **Blend mode** (video clip on overlay track) — Normal / Multiply / Screen / Overlay / Soft Light / Add / Subtract. Blend interacts with the track below it.
+- **Opacity** — 0–100% slider (already in Inspector per §10.2).
+- **Audio pan** (audio clip) — –1.0 (L) ↔ +1.0 (R) slider with center detent.
+- **Audio normalize** (audio clip) — chips for target LUFS: –16 (streaming) / –14 (loud) / –23 (broadcast); applies across the clip.
 
 ---
 
@@ -625,6 +718,15 @@ Default order: Split / Trim / Speed / Mask / Keyframes / Tracking. User-customiz
 | ← / → | Playhead ±1 frame |
 | ⇧← / ⇧→ | Playhead ±1 second |
 | ⇥ | Cycle tabs (Edit → Audio → Text → FX → Color) |
+| ⌘A | Select all at playhead |
+| ⌘X | Cut clip (copy + remove; respects ripple) |
+| ⌘G / ⇧⌘G | Group / Ungroup selection |
+| ⌥ ← / → | Nudge selected clip(s) ±1 frame |
+| ⌥⇧ ← / → | Nudge selected clip(s) ±1 second |
+| `\` | Zoom to fit entire project |
+| ⌘⇧0 | Zoom to selection |
+| I | Toggle Insert ↔ Overwrite mode |
+| Esc | Exit group / deselect all / dismiss sub-panel |
 
 Exposed via `UIKeyCommand` in `KeyboardShortcutProvider`; discoverable via Hold-⌘ overlay.
 
@@ -764,6 +866,7 @@ Swap is atomic at seek boundaries — never mid-frame. The playback engine expos
 - **Creative panels:** `TextEditorSheet`, `TransitionPickerSheet`, `FXBrowserSheet`, `LUTPickerSheet`, `ColorWheelsPanel` (`ColorWheelControl` primitive), `CurvesEditor`, `HSLPanel`, `ScopesPanel`.
 - **Supporting:** `MediaPickerSheet`, `VoiceOverModal`, `AutoCaptionsReviewView`, `ProjectSettingsSheet`, `EmptyStateView`, `OnboardingSheet`, `PermissionPrimerSheet`, `CameraCaptureView`, `UndoHistoryScrubber`.
 - **Proxy pipeline (§10.9):** `ProxyService` (orchestrator), `ProxyGenerator` (actor running `AVAssetExportSession`), `ProxyStorageManager` (disk quota + LRU eviction), `ProxyStatusView` (clip-tile PXY chip + progress bar).
+- **Clip operations (§7.10–7.12):** `ClipGroupView` (bracket + label + breadcrumb + nesting), `CustomExportPresetEditor` (full form + save-as + validation + live estimate), `TransformControls` (flip / rotate / crop / blend), `AudioPanControl`, `AudioNormalizePanel`, `TimelineOpsRegistry` (keyboard + context-menu + toolbar command registry).
 - **Timeline internals:** `AudioWaveformView`, `BeatMarkerLayer`, `ChapterMarkerLayer`, `RippleEditController`.
 
 ### 11.4 View models

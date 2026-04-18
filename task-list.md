@@ -19,11 +19,12 @@
 ## 1. Summary & Critical Path
 
 - **Epics:** 17 (Epic 0 Decisions → Epic 16 iPad Platform Extras).
-- **Tasks:** 218 total.
-- **Total estimated effort:** ~275 engineer-days.
+- **Tasks:** 244 total.
+- **Total estimated effort:** ~310 engineer-days.
 - **Revision 2 (2026-04-18):** 142 → 174 (added domain models + iPad extras + export presets/destinations + creative engines + library CRUD + timeline extras + platform foundation).
 - **Revision 3 (2026-04-18):** 174 → 208 after paragraph-by-paragraph spec audit. Added: Editor chrome buttons (project chip dropdown, app Settings, avatar menu, You tab, Drafts, New Project flow), preview gestures (pinch/pan/double-tap/overlays), compute engines behind specced UI (chroma key compute, curves/HSL pipelines, stabilization algorithms, dialog detection, speed-bake, .cube parser), per-clip data models for tracking + mask, timeline execution logic (Slip/Roll/Slide, multi-clip batch ops, track reordering, add/remove track, clip clipboard, Properties view), library search + URL import, content tasks (LUT library + font management), polish (effect-stack reorder, caption export SRT/VTT, export cancel cleanup, global snap settings, custom color picker).
 - **Revision 4 (2026-04-18):** 208 → 218 after adding Proxy Rendering Pipeline (spec §10.9): `ProxyService` orchestrator, `ProxyGenerator` actor, storage manager with LRU, playback routing (proxy for preview, original for export), UI surfaces (PXY clip chip, App Settings Proxies section, Inspector per-clip override, import pill secondary line), and testing.
+- **Revision 5 (2026-04-18):** 218 → 244 after adding timeline operations + custom export editor + clip grouping. Spec gains §5.6 Custom Export Preset Editor, §7.10 Clip Grouping / Compound Clips, §7.11 Timeline Operations Catalog, §7.12 Per-Clip Transform & Blend. Tasks added: custom preset editor, clip grouping + nesting, clip nudge, z-order (front/back), blend modes, select-all helpers, insert/overwrite mode, cut, collapse-gap, flip H/V, quick rotate, crop, auto-follow playhead, zoom-to-fit/selection, audio pan, audio normalize, new data models + inspector rows + keyboard shortcuts.
 - **With 4 parallel streams:** critical path is **~7 weeks** (35 working days).
 - **With 2 parallel streams:** ~10–12 weeks.
 
@@ -161,6 +162,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | S2-22 | **Avatar menu** in Library header (iPhone + iPad): quick access to App Settings, sign out, about | S | S2-5, S2-6, F0-9 | §4.1, §4.2 | C | ○ |
 | S2-23 | Export cancel-mid-render cleanup: stop `AVAssetExportSession`, delete partial output, reset queue entry, clear error log | S | S2-10 | §5.4 | C | ○ |
 | S2-24 | **App Settings › Proxies** section: master toggle, threshold picker (Off/≥1080p/≥4K/Always), cap selector (1/5/20 GB/Unlimited), live disk-usage readout, destructive **Clear all proxies** | M | F0-9, PP12-8, PP12-11 | §10.9.6 | A | ○ |
+| S2-25 | **Custom Export Preset Editor**: full-form UI (Video/Audio/Color/Advanced sections), named-preset save/edit/delete, validation banner for invalid combos, live size estimator reuse (S2-14), saved-presets list in preset segmented | XL | S2-10, S2-12, S2-14, M15-9 | §5.6 | C | ○ |
 
 ### Epic 3 — Editor Tab Wiring
 
@@ -268,6 +270,19 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | T7-21 | **Preview pinch-zoom (1×–5×) + pan-when-zoomed**: gesture handlers on preview surface; reset via double-tap | M | S2-1 | §3.1 | B | ○ |
 | T7-22 | **Preview double-tap zoom** toggle (zoom-fit ↔ zoom-fill) | S | T7-21 | §3.1 | B | ○ |
 | T7-23 | **Preview overlay toggles** (grid / safe-zone / center cross / action-safe); toggled from overflow in preview chrome; persisted per-project | S | S2-1, M15-5 | existing feature + §3.1 | B | ○ |
+| T7-24 | **Clip grouping / compound clips**: Group (⌘G) + Ungroup (⇧⌘G), amber bracket + label, enter/exit via double-tap / Esc, nested groups up to 5 levels; move/trim/delete as unit | L | M15-7 | §7.10 | B | ○ |
+| T7-25 | **Clip nudge by arrow keys**: ⌥← / ⌥→ ±1 frame on selected clip(s); ⌥⇧← / ⌥⇧→ ±1 second | S | T7-5 | §7.11, §10.5 | B | ○ |
+| T7-26 | **Z-order on overlay tracks**: Bring-to-front / Send-to-back context actions; handles overlapping overlay clips | S | S2-1 | §7.11 | B | ○ |
+| T7-27 | **Blend modes per clip**: Normal / Multiply / Screen / Overlay / Soft Light / Add / Subtract; applies only to overlay-track clips | M | M15-8 | §7.12 | B | ○ |
+| T7-28 | **Select-all helpers**: Select all on track / at playhead / forward from playhead / backward from playhead; ⌘A shortcut | S | T7-5 | §7.11 | B | ○ |
+| T7-29 | **Insert vs. Overwrite mode** toggle in transport row + `I` shortcut; Insert pushes existing clips forward, Overwrite replaces content under playhead | M | S2-1 | §7.11 | B | ○ |
+| T7-30 | **Cut action** (⌘X): copy + remove; honors ripple setting (D0-5); places on clipboard for cross-project paste (T7-14) | S | T7-14, P1-13 | §7.11 | B | ○ |
+| T7-31 | **Collapse gap**: context action on empty track region removes the gap and shifts following clips left | S | S2-1 | §7.11 | B | ○ |
+| T7-32 | **Flip horizontal / Flip vertical**: one-tap toggles in Transform section / Edit tab | S | M15-8 | §7.12 | B | ○ |
+| T7-33 | **Quick rotate**: 0° / 90° / 180° / 270° segmented in Transform section | S | M15-8 | §7.12 | B | ○ |
+| T7-34 | **Crop tool**: rect crop (top/right/bottom/left numeric + drag-handle overlay on preview); distinct from Mask §7.5 | M | S2-1, M15-8 | §7.12 | B | ○ |
+| T7-35 | **Auto-follow playhead** toggle in transport + Settings; when on, timeline auto-scrolls during playback to keep playhead in view | S | S2-1 | §7.11 | B | ○ |
+| T7-36 | **Zoom to fit / Zoom to selection** actions (`\` / ⌘⇧0); smoothly animates timeline zoom + scroll | S | S2-1 | §7.11 | B | ○ |
 
 ### Epic 8 — Small Tools (leaf controls, highly parallel)
 
@@ -288,6 +303,8 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | TD8-13 | Reverse + Freeze-frame render actions + progress UI | M | S2-4 | §3.4, §6.1 | B | ○ |
 | TD8-14 | Animation (in/out/loop) preset chips for clip animation tool | S | C5-2 | §6.1 | D | ○ |
 | TD8-15 | Tool-rail customization sheet (“Edit rail…” long-press menu; pick 6 of N tools; per-project persistence) | M | P1-3, M15-5 | §10.4 | D | ○ |
+| TD8-16 | **Audio pan control** — –1.0 (L) ↔ +1.0 (R) slider with center detent; per-audio-clip; Inspector-embedded | S | M15-8 | §7.12, §6.2 | D | ○ |
+| TD8-17 | **Audio normalize** — target-LUFS chips (–16 / –14 / –23); clip-level peak+LUFS calc and gain application | M | M15-8 | §7.12, §6.2 | D | ○ |
 
 ### Epic 9 — Inspector Matrix (iPad right-rail sections)
 
@@ -308,6 +325,9 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | IM9-13 | Multi-select handling: show “Mixed” em-dash for inconsistent values | M | IM9-1 | §10.2 | D | ○ |
 | IM9-14 | Section: **Clip Properties** (read-only metadata — codec / resolution / fps / color space / duration / path); replaces action sheet when accessed via inspector rather than context menu | S | IM9-1, T7-19 | §10.2, §6.1 | D | ○ |
 | IM9-15 | Section: **Proxy controls** (video clip selected): `Use proxy` segmented — Follow project / Always on / Always off / Regenerate; status line (`ready` / `generating` / `failed`) | S | IM9-1, PP12-8 | §10.9.6 | D | ○ |
+| IM9-16 | Section: **Blend mode** selector (video clip on overlay track): 7-option segmented | S | IM9-1, T7-27 | §10.2, §7.12 | D | ○ |
+| IM9-17 | Section: **Flip + Quick Rotate + Crop** actions embedded in Transform section | S | IM9-3, T7-32, T7-33, T7-34 | §10.2, §7.12 | D | ○ |
+| IM9-18 | Section: **Audio pan** slider (audio clip) | S | IM9-1, TD8-16 | §10.2, §7.12 | D | ○ |
 
 ### Epic 10 — Accessibility Pass
 
@@ -336,6 +356,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | K11-4 | Register modal shortcuts: Esc dismiss, F fullscreen, ⌘E export, ⌘N new, ⌘F search, ⇥ cycle tabs | S | P1-9 | §10.5 | A | ○ |
 | K11-5 | Marker shortcut: M at playhead | S | P1-9, P1-12 | §10.5 | A | ○ |
 | K11-6 | Hold-⌘ discoverability overlay population (group labels + all shortcuts) | S | K11-1..5 | §10.5 | A | ○ |
+| K11-7 | **Clip-operation shortcuts**: ⌘A select-all-at-playhead, ⌘X cut, ⌘G / ⇧⌘G group/ungroup, ⌥←/→ nudge ±frame, ⌥⇧←/→ nudge ±sec, `\` zoom-fit, ⌘⇧0 zoom-selection, `I` toggle insert/overwrite | S | P1-9, T7-14, T7-24, T7-25, T7-29, T7-30, T7-36 | §10.5, §7.11 | A | ○ |
 
 ### Epic 12 — Performance
 
@@ -389,6 +410,9 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | M15-4 | Text-clip model expansion: add stroke (color+width), shadow (offset+blur+α), background (fill/bubble/blur), animation (in+out+loop refs) fields | S | — | §8.1 | D | ○ |
 | M15-5 | Per-project UI state: `ProjectUIState` codable blob (tool-rail config, last zoom bucket, last-selected tool, scope dock state, tab index) | M | — | §10.4 | A | ○ |
 | M15-6 | **`MediaAsset` proxy fields**: add `proxyURL: URL?`, `proxyStatus`, `proxyGeneratedAt`, `useProxyOverride`; `Codable` migration for existing project files | S | — | §10.9.2 | A | ○ |
+| M15-7 | **`ClipGroup` model**: `{ id, name, memberIDs, color }` with nesting support (up to 5 levels); `Codable`; lives alongside `Clip` in `PersistentTimeline` | M | — | §7.10 | B | ○ |
+| M15-8 | **Clip transform + blend + audio-pan fields**: extend `Clip` with `blendMode`, `flipH`, `flipV`, `rotate90`, `cropRect`, `audioPan`, `audioNormalizeTarget?`; `Codable` migration | M | — | §7.12 | B | ○ |
+| M15-9 | **`CustomExportPreset` model**: named preset with all §5.6 fields; stored in per-user defaults + Codable; swipe-to-delete / tap-to-edit list | S | — | §5.6 | C | ○ |
 
 ### Epic 16 — iPad Platform Extras
 
@@ -421,6 +445,7 @@ All of these can start **simultaneously on day 1**:
 15. **F0-9** (App Settings screen) — stream A. Decoupled once F0-2 lands.
 16. **F0-10** (Proxy defaults config), **M15-6** (MediaAsset proxy fields) — stream A. Decoupled; feed PP12-8 chain.
 17. **PP12-9** (`ProxyGenerator` actor) — stream A. Can land on top of F0-10; fully decoupled from UI.
+18. **M15-7, M15-8, M15-9** (ClipGroup, clip transform fields, custom export preset) — stream B/C. Pure data-model work, no UI deps.
 
 After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-17) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
 
@@ -447,23 +472,23 @@ Update the per-task `Status` column (`○ → ◔ → ●`) as work progresses. 
 
 - Epic 0: 0 / 16 done
 - Epic 1: 0 / 17 done
-- Epic 2: 0 / 24 done
+- Epic 2: 0 / 25 done
 - Epic 3: 0 / 6 done
 - Epic 4: 0 / 12 done
 - Epic 5: 0 / 21 done
 - Epic 6: 0 / 20 done
-- Epic 7: 0 / 23 done
-- Epic 8: 0 / 15 done
-- Epic 9: 0 / 15 done
+- Epic 7: 0 / 36 done
+- Epic 8: 0 / 17 done
+- Epic 9: 0 / 18 done
 - Epic 10: 0 / 12 done
-- Epic 11: 0 / 6 done
+- Epic 11: 0 / 7 done
 - Epic 12: 0 / 12 done
 - Epic 13: 0 / 9 done
 - Epic 14: 0 / 6 done
-- Epic 15: 0 / 6 done
+- Epic 15: 0 / 9 done
 - Epic 16: 0 / 3 done
 
-**Total: 0 / 218 tasks done**
+**Total: 0 / 244 tasks done**
 
 ---
 
