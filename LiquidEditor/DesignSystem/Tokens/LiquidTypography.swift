@@ -116,4 +116,36 @@ enum LiquidTypography {
 
     /// Monospaced subheadline for timeline displays (15pt).
     static let monoSubheadline = Font.system(.subheadline, design: .monospaced, weight: .medium)
+
+    // MARK: - Premium UI scale (2026-04-18 redesign)
+
+    /// Project name, sheet titles.
+    enum Display {
+        static let font = Font.system(size: 28, weight: .semibold, design: .rounded)
+    }
+
+    /// Nav titles, primary labels.
+    enum Title {
+        static let font = Font.system(size: 17, weight: .semibold, design: .default)
+    }
+
+    /// Tool labels, menu items.
+    enum Body {
+        static let font = Font.system(size: 15, weight: .regular, design: .default)
+    }
+
+    /// Metadata, aspect chip.
+    enum Caption {
+        static let font = Font.system(size: 12, weight: .medium, design: .default)
+    }
+
+    /// All timecodes — signature Edits cue.
+    enum Mono {
+        static let font = Font.system(size: 13, weight: .medium, design: .monospaced)
+    }
+
+    /// Playhead time chip.
+    enum MonoLarge {
+        static let font = Font.system(size: 18, weight: .semibold, design: .monospaced)
+    }
 }
