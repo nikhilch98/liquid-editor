@@ -142,12 +142,14 @@ enum LiquidColors {
     // MARK: - Premium UI scopes (2026-04-18 redesign)
 
     /// Canvas layers used by the editor shell and sheets.
-    /// See docs/superpowers/specs/2026-04-18-liquideditor-premium-ui-design.md.
+    /// See docs/superpowers/specs/2026-04-18-premium-ui-redesign-spec.md §2.1.
     enum Canvas {
         /// Deepest layer — app background behind chrome. #07070A.
         static let base = Color(red: 7 / 255, green: 7 / 255, blue: 10 / 255)
         /// Preview + timeline background. #0F0F12.
         static let raised = Color(red: 15 / 255, green: 15 / 255, blue: 18 / 255)
+        /// Elevated cell — tool buttons, segmented items, filled chips. #1A1A1F.
+        static let elev = Color(red: 26 / 255, green: 26 / 255, blue: 31 / 255)
     }
 
     /// Text colors tuned for the Edits-style bone-white on near-black palette.
@@ -172,5 +174,9 @@ enum LiquidColors {
         ).opacity(0.37)
         /// Destructive confirmation color. #E5534A.
         static let destructive = Color(red: 229 / 255, green: 83 / 255, blue: 74 / 255)
+        /// Positive / completion-state accent. #6BCB77.
+        static let success = Color(red: 107 / 255, green: 203 / 255, blue: 119 / 255)
+        /// Warning / caution-state accent. #E5A14A.
+        static let warning = Color(red: 229 / 255, green: 161 / 255, blue: 74 / 255)
     }
 }
