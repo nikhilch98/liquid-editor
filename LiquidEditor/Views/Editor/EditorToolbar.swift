@@ -2,13 +2,12 @@
 // LiquidEditor
 //
 // Bottom toolbar with tab selection and context-specific tool buttons.
-// Uses .ultraThinMaterial for iOS Liquid Glass styling.
-// Each tab presents a different set of editing tools.
+// Uses ToolButton + TabBarItem from the 2026-04-18 premium UI design.
 //
 // Layout (top to bottom):
 //   1. Scrollable tool buttons row (context-specific to active tab)
 //   2. Divider
-//   3. Tab bar (icons only, no text labels)
+//   3. Tab bar (TabBarItem cells with amber pill indicator)
 
 import SwiftUI
 
@@ -16,8 +15,8 @@ import SwiftUI
 
 /// Bottom toolbar with tabs and context-sensitive tool buttons.
 ///
-/// Matches the Flutter `EditorBottomToolbar` layout:
-/// Tools row -> Divider -> Tab bar (icons only).
+/// Top row: horizontally-scrolling ToolButton cells for the active tab's
+/// tools. Bottom row: five TabBarItem cells animated with LiquidMotion.bounce.
 struct EditorToolbar: View {
 
     // MARK: - Properties
@@ -36,33 +35,38 @@ struct EditorToolbar: View {
     /// calls this; otherwise the viewModel.toggleTrackDebug() is used.
     var onTrackDebug: (() -> Void)?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Context-specific tool buttons (above divider)
-                toolButtonsForActiveTab
-                    .padding(.horizontal, LiquidSpacing.md)
-                    .padding(.vertical, LiquidSpacing.sm)
+        VStack(spacing: 0) {
+            // Top row: context tool buttons
+            toolButtonsForActiveTab
+                .padding(.horizontal, LiquidSpacing.md)
+                .padding(.vertical, LiquidSpacing.sm)
 
-                // Divider
-                Rectangle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(height: 0.5)
-                    .padding(.horizontal, LiquidSpacing.lg)
+            // Divider
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 0.5)
+                .padding(.horizontal, LiquidSpacing.lg)
 
-                // Tab bar (icons only, no text labels)
-                tabBar
-                    .padding(.horizontal, LiquidSpacing.md)
-                    .padding(.vertical, 6)
-                    .padding(.bottom, max(LiquidSpacing.sm, geometry.safeAreaInsets.bottom))
-            }
-            .background(.ultraThinMaterial)
+            // Tab bar
+            tabBar
+                .padding(.horizontal, LiquidSpacing.md)
+                .padding(.vertical, LiquidSpacing.xs)
+                .padding(.bottom, safeBottomInset)
         }
-        .fixedSize(horizontal: false, vertical: true)
+        .background(.ultraThinMaterial)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Editor toolbar")
+    }
+
+    // MARK: - Safe Bottom Inset
+
+    private var safeBottomInset: CGFloat {
+        max(LiquidSpacing.sm, 8)
     }
 
     // MARK: - Tab Bar
@@ -70,29 +74,15 @@ struct EditorToolbar: View {
     private var tabBar: some View {
         HStack(spacing: 0) {
             ForEach(EditorTab.allCases, id: \.self) { tab in
-                Button {
-                    UISelectionFeedbackGenerator().selectionChanged()
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                TabBarItem(
+                    systemName: viewModel.activeTab == tab ? tab.activeIconName : tab.iconName,
+                    label: tab.displayName,
+                    isActive: viewModel.activeTab == tab
+                ) {
+                    withAnimation(.liquid(LiquidMotion.smooth, reduceMotion: reduceMotion)) {
                         viewModel.activeTab = tab
                     }
-                } label: {
-                    Image(
-                        systemName: viewModel.activeTab == tab
-                            ? tab.activeIconName
-                            : tab.iconName
-                    )
-                    .font(.system(size: 24))
-                    .foregroundStyle(
-                        viewModel.activeTab == tab
-                        ? Color.orange
-                        : LiquidColors.textSecondary
-                    )
-                    .frame(maxWidth: .infinity)
-                    .frame(height: LiquidSpacing.timelineTrackHeight)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(tab.displayName) tab")
-                .accessibilityAddTraits(viewModel.activeTab == tab ? .isSelected : [])
             }
         }
         .accessibilityElement(children: .contain)
@@ -107,97 +97,136 @@ struct EditorToolbar: View {
             HStack(spacing: LiquidSpacing.xs) {
                 switch viewModel.activeTab {
                 case .edit:
-                    editTools
+                    editTabTools
                 case .fx:
-                    fxTools
+                    fxTabTools
                 case .overlay:
-                    overlayTools
+                    overlayTabTools
                 case .audio:
-                    audioTools
+                    audioTabTools
                 case .smart:
-                    smartTools
+                    smartTabTools
                 }
             }
             .padding(.horizontal, LiquidSpacing.xs)
         }
-        .frame(height: LiquidSpacing.timelineTrackHeight)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(viewModel.activeTab.displayName) tools")
     }
 
     // MARK: - Edit Tab Tools
 
-    private var editTools: some View {
-        Group {
-            toolButton(icon: "rectangle.split.2x1", label: "Trim") {
-                viewModel.toggleTrimMode()
-            }
-            toolButton(icon: "scissors", label: "Split") {
-                viewModel.splitAtPlayhead()
-            }
-            toolButton(icon: "doc.on.doc", label: "Copy") {
-                viewModel.duplicateSelected()
-            }
-            toolButton(icon: "trash", label: "Delete", isDestructive: true) {
-                viewModel.deleteSelected()
-            }
-            toolButton(icon: "square.3.layers.3d", label: "Tracks") {
-                viewModel.setActivePanel(.trackManagement)
-            }
+    @ViewBuilder
+    private var editTabTools: some View {
+        ToolButton(systemName: "scissors", caption: "Split", isActive: false) {
+            viewModel.splitAtPlayhead()
+        }
+        ToolButton(
+            systemName: "arrow.left.and.right.square",
+            caption: "Trim",
+            isActive: viewModel.isTrimMode
+        ) {
+            viewModel.isTrimMode.toggle()
+        }
+        ToolButton(systemName: "doc.on.doc", caption: "Copy", isActive: false) {
+            viewModel.duplicateSelected()
+        }
+        ToolButton(systemName: "trash", caption: "Delete", isActive: false) {
+            viewModel.deleteSelected()
+        }
+        ToolButton(
+            systemName: "square.stack.3d.up",
+            caption: "Tracks",
+            isActive: viewModel.activePanel == .trackManagement
+        ) {
+            viewModel.activePanel = (viewModel.activePanel == .trackManagement) ? .none : .trackManagement
         }
     }
 
     // MARK: - FX Tab Tools
 
-    private var fxTools: some View {
-        Group {
-            toolButton(icon: "camera.filters", label: "Filters") {
-                viewModel.setActivePanel(.videoEffects)
-            }
-            toolButton(icon: "sparkles", label: "Effects") {
-                viewModel.setActivePanel(.videoEffects)
-            }
-            toolButton(icon: "square.on.square", label: "Transition") {
-                viewModel.setActivePanel(.transition)
-            }
-            toolButton(icon: "tuningfork", label: "Adjust") {
-                viewModel.setActivePanel(.colorGrading)
-            }
-            toolButton(icon: "crop", label: "Crop") {
-                viewModel.setActivePanel(.crop)
-            }
+    @ViewBuilder
+    private var fxTabTools: some View {
+        ToolButton(
+            systemName: "camera.filters",
+            caption: "Filters",
+            isActive: viewModel.activePanel == .videoEffects
+        ) {
+            viewModel.setActivePanel(.videoEffects)
+        }
+        ToolButton(
+            systemName: "sparkles",
+            caption: "Effects",
+            isActive: viewModel.activePanel == .videoEffects
+        ) {
+            viewModel.setActivePanel(.videoEffects)
+        }
+        ToolButton(
+            systemName: "square.on.square",
+            caption: "Transition",
+            isActive: viewModel.activePanel == .transition
+        ) {
+            viewModel.setActivePanel(.transition)
+        }
+        ToolButton(
+            systemName: "tuningfork",
+            caption: "Adjust",
+            isActive: viewModel.activePanel == .colorGrading
+        ) {
+            viewModel.setActivePanel(.colorGrading)
+        }
+        ToolButton(
+            systemName: "crop",
+            caption: "Crop",
+            isActive: viewModel.activePanel == .crop
+        ) {
+            viewModel.setActivePanel(.crop)
         }
     }
 
     // MARK: - Overlay Tab Tools
 
-    private var overlayTools: some View {
-        Group {
-            toolButton(icon: "textformat", label: "Text") {
-                viewModel.setActivePanel(.textEditor)
-            }
-            toolButton(icon: "face.smiling", label: "Sticker") {
-                viewModel.setActivePanel(.stickerPicker)
-            }
+    @ViewBuilder
+    private var overlayTabTools: some View {
+        ToolButton(
+            systemName: "textformat",
+            caption: "Text",
+            isActive: viewModel.activePanel == .textEditor
+        ) {
+            viewModel.setActivePanel(.textEditor)
+        }
+        ToolButton(
+            systemName: "face.smiling",
+            caption: "Sticker",
+            isActive: viewModel.activePanel == .stickerPicker
+        ) {
+            viewModel.setActivePanel(.stickerPicker)
         }
     }
 
     // MARK: - Audio Tab Tools
 
-    private var audioTools: some View {
-        Group {
-            toolButton(icon: "speaker.wave.2", label: "Volume") {
-                viewModel.setActivePanel(.volume)
-            }
-            toolButton(icon: "gauge.with.dots.needle.33percent", label: "Speed") {
-                viewModel.setActivePanel(.speed)
-            }
-            // Voice/mic button — wired to recording or custom callback
-            voiceButton
-            if let playbackViewModel {
-                toolButton(icon: "speaker.slash", label: "Mute") {
-                    playbackViewModel.toggleMute()
-                }
+    @ViewBuilder
+    private var audioTabTools: some View {
+        ToolButton(
+            systemName: "speaker.wave.2",
+            caption: "Volume",
+            isActive: viewModel.activePanel == .volume
+        ) {
+            viewModel.setActivePanel(.volume)
+        }
+        ToolButton(
+            systemName: "gauge.with.dots.needle.33percent",
+            caption: "Speed",
+            isActive: viewModel.activePanel == .speed
+        ) {
+            viewModel.setActivePanel(.speed)
+        }
+        // Voice/mic button — wired to recording or custom callback
+        voiceButton
+        if let playbackViewModel {
+            ToolButton(systemName: "speaker.slash", caption: "Mute", isActive: false) {
+                playbackViewModel.toggleMute()
             }
         }
     }
@@ -209,7 +238,7 @@ struct EditorToolbar: View {
     /// When recording is active the icon is replaced by a pulsing red circle.
     private var voiceButton: some View {
         Button {
-            UISelectionFeedbackGenerator().selectionChanged()
+            HapticService.shared.play(.selection)
             if let onVoice {
                 onVoice()
             } else {
@@ -222,19 +251,19 @@ struct EditorToolbar: View {
                         .frame(width: 28, height: 28)
                 } else {
                     Image(systemName: "mic")
-                        .font(.system(size: 22))
+                        .font(.system(size: 22, weight: .medium))
                         .frame(width: 28, height: 28)
                 }
                 Text("Voice")
-                    .font(.system(size: 10, weight: viewModel.isRecording ? .semibold : .regular))
+                    .font(.system(size: 11, weight: viewModel.isRecording ? .semibold : .medium))
                     .lineLimit(1)
             }
-            .foregroundStyle(viewModel.isRecording ? Color.red : LiquidColors.textSecondary)
+            .foregroundStyle(viewModel.isRecording ? Color.red : LiquidColors.Text.secondary)
             .frame(width: 60)
             .padding(.vertical, 6)
             .background(
                 viewModel.isRecording
-                ? RoundedRectangle(cornerRadius: 10).fill(Color.red.opacity(0.15))
+                ? RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.red.opacity(0.15))
                 : nil
             )
         }
@@ -247,77 +276,33 @@ struct EditorToolbar: View {
 
     // MARK: - Smart Tab Tools
 
-    private var smartTools: some View {
-        Group {
-            toolButton(
-                icon: "person.crop.rectangle",
-                label: "Track",
-                isActive: viewModel.isTrackingActive
-            ) {
-                viewModel.setActivePanel(.personSelection)
-            }
-            toolButton(icon: "crop", label: "Reframe") {
-                viewModel.setActivePanel(.autoReframe)
-            }
-            toolButton(
-                icon: "ant",
-                label: "Debug",
-                isActive: viewModel.isTrackDebugActive
-            ) {
-                if let onTrackDebug {
-                    onTrackDebug()
-                } else {
-                    viewModel.toggleTrackDebug()
-                }
+    @ViewBuilder
+    private var smartTabTools: some View {
+        ToolButton(
+            systemName: "person.crop.rectangle",
+            caption: "Track",
+            isActive: viewModel.isTrackingActive
+        ) {
+            viewModel.setActivePanel(.personSelection)
+        }
+        ToolButton(
+            systemName: "crop",
+            caption: "Reframe",
+            isActive: viewModel.activePanel == .autoReframe
+        ) {
+            viewModel.setActivePanel(.autoReframe)
+        }
+        ToolButton(
+            systemName: "ant",
+            caption: "Debug",
+            isActive: viewModel.isTrackDebugActive
+        ) {
+            if let onTrackDebug {
+                onTrackDebug()
+            } else {
+                viewModel.toggleTrackDebug()
             }
         }
-    }
-
-    // MARK: - Tool Button Builder
-
-    /// Creates a standard tool button with icon and label.
-    ///
-    /// Supports active state (orange highlight) and destructive (red) styling
-    /// matching the Flutter `_ToolButton` widget.
-    private func toolButton(
-        icon: String,
-        label: String,
-        isActive: Bool = false,
-        isDestructive: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button {
-            UISelectionFeedbackGenerator().selectionChanged()
-            action()
-        } label: {
-            VStack(spacing: LiquidSpacing.xxs) {
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                    .frame(width: 28, height: 28)
-                Text(label)
-                    .font(.system(size: 10, weight: isActive ? .semibold : .regular))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(toolButtonColor(isActive: isActive, isDestructive: isDestructive))
-            .frame(width: 60)
-            .padding(.vertical, 6)
-            .background(
-                isActive
-                ? RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.orange.opacity(0.15))
-                : nil
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(isActive ? .isSelected : [])
-    }
-
-    /// Determine tool button foreground color based on state.
-    private func toolButtonColor(isActive: Bool, isDestructive: Bool) -> Color {
-        if isDestructive { return LiquidColors.error }
-        if isActive { return .orange }
-        return LiquidColors.textSecondary
     }
 }
 
