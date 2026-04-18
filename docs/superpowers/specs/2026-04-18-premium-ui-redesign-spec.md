@@ -282,6 +282,10 @@ Multiple exports allowed. While one runs, tapping Export on another queues it; a
 | Reverse / Freeze frame | progress | Amber bar on clip; tap-to-cancel. |
 | Replace | full mode | Opens Media Picker (§9.1). |
 | Group / Ungroup | no | See §7.10. |
+| **Compound / Break** | no | See §7.13 (⌘⌥G to compound). |
+| **Link / Unlink** | no | See §7.16 (⌘L / ⇧⌘L). |
+| **Match frame** | no | See §7.15 (`F`). |
+| **Clip marker** | no | See §7.17 (`M`). |
 | Transform (Flip / Rotate / Crop / Blend) | inline (§7.12) | Shared with Inspector on iPad. |
 | Keyframes | inline (§7.2) | — |
 | Animation | yes | Preset chips (§8.1.3 list). |
@@ -289,7 +293,7 @@ Multiple exports allowed. While one runs, tapping Export on another queues it; a
 
 ### 6.2 Audio tab
 
-Music │ SFX │ Record (→ §9.2) │ Extract │ Volume │ **Pan** (§7.12) │ **Normalize** (§7.12) │ **Beat detect** (§7.6) │ EQ │ Pitch │ **Auto-mix** (§7.7).
+Music │ SFX │ Record (→ §9.2) │ Extract │ Volume │ **Pan** (§7.12) │ **Normalize** (§7.12) │ **Beat detect** (§7.6) │ EQ │ Pitch │ **Reverb** (§7.18) │ **Delay** (§7.18) │ **Compression** (§7.18) │ **Gate** (§7.18) │ **Limiter** (§7.18) │ **Auto-mix** (§7.7).
 
 ### 6.3 Text tab
 
@@ -435,6 +439,80 @@ Live in the Inspector Transform section (iPad) or Edit-tab “Transform” sub-p
 - **Opacity** — 0–100% slider (already in Inspector per §10.2).
 - **Audio pan** (audio clip) — –1.0 (L) ↔ +1.0 (R) slider with center detent.
 - **Audio normalize** (audio clip) — chips for target LUFS: –16 (streaming) / –14 (loud) / –23 (broadcast); applies across the clip.
+
+### 7.13 True Compound Clips
+
+Built on §7.10 Groups. Where a Group is a thin bracket around members (each rendering independently), a **Compound Clip** is a single rendered source produced by flattening a nested timeline.
+
+- **Convert:** context menu on a Group → **Convert to Compound Clip** (⌘⌥G). Destructive only in the sense that per-member effect stacks are captured into the flattened render; Undo restores the Group unchanged.
+- **Revert:** context menu on a Compound Clip → **Break to Group** restores the Group with all original members and their per-member settings.
+- **Internal timeline:** double-tapping a Compound enters it; you see its own tracks, ruler, transport, and all tab drill-downs apply. Breadcrumb reads `Project › Compound — “Intro”`.
+- **Rendering:** the compound’s internal timeline composites through the existing `MultiTrackCompositor` to a single video+audio source; that source is then treated as one clip in the parent timeline. The composited output is cached; re-rendered on internal edits.
+- **Effects on a Compound:** grading, effects, masks, keyframes, blend modes apply **after** the internal composition, i.e., to the final compound output.
+- **Nesting:** compounds may contain compounds. Soft cap at 10 levels with a warn banner; hard cap at 20 to protect the render pipeline.
+- **Thumbnail:** compound tile in the parent timeline shows a rendered frame from the internal composition’s first second, with a small 🤵 compound glyph overlay.
+- **Perf:** render cache per compound identified by `(compoundID, contentHash)`; invalidated when any descendant edit commits. Background re-render (low-QoS) with progress visible on the compound tile.
+
+### 7.14 Source Monitor & Three-Point / Four-Point Editing
+
+A pro workflow surface for building a cut from source material. Ships on **iPad only in v1**; iPhone adds a lightweight sheet variant.
+
+- **Source Monitor** — second preview surface, distinct from the program preview. Displays whichever clip is currently “losaded”: tap a clip in the Media Browser, or `Shift`-tap a clip in the timeline to load its source.
+- **Placement:** iPad docks the Source Monitor above the Inspector (right rail); the existing program Preview becomes the Destination Monitor. iPhone surfaces Source Monitor as a large-detent sheet when any three-point command fires.
+- **Source markers:** independent IN (`I`) / OUT (`O`) markers on the source, separate from the timeline.
+- **Destination markers:** use the timeline playhead for Destination IN (`⇧I`) and — for 4-point — Destination OUT (`⇧O`).
+- **Commands** (buttons + shortcuts):
+  | Command | Shortcut | Behavior |
+  |---|---|---|
+  | **Insert at playhead** | `,` | Inserts source IN→OUT at destination playhead; existing clips push forward. |
+  | **Overwrite at playhead** | `.` | Replaces content under playhead for source IN→OUT length. |
+  | **3-point edit** | `F9` | Source IN + OUT + destination IN → inserts or overwrites per mode; duration = source (OUT−IN). |
+  | **4-point edit** | `F10` | Source IN + OUT + destination IN + OUT → fits source into destination window (may retime). |
+  | **Replace at playhead** | `N` | Swaps content directly under playhead, preserving effects. |
+- **J / K / L shuttle** works on the Source Monitor when focused.
+- **Audio / video only** toggles: pick which tracks the insert/overwrite writes to.
+
+### 7.15 Match Frame
+
+- **Entry:** context menu on a timeline clip → **Match frame**, or `F` shortcut when clip is selected.
+- **Effect:** opens the Media Browser (iPad) or source sheet (iPhone) with the source asset highlighted; loads it into the Source Monitor (§7.14) with its IN set at the exact source-frame that corresponds to the current playhead position in the timeline clip.
+- **Use:** jump back to source to make a different cut of the same take without hunting in the browser.
+- **Reverse direction:** when a source-browser clip is focused, **Match frame** jumps the timeline playhead to any place where that source is used (cycles through usages if multiple).
+
+### 7.16 Link / Unlink Clips
+
+Video+audio clips imported from the same source are auto-linked. A **Link Group** binds moves, trims, and deletes across members so sync stays intact.
+
+- **Visual:** linked clips share a 1px amber underline along their bottom edges + a small 🔗 glyph on the leftmost member. Selecting one selects the group.
+- **Auto-link on import:** any video asset with matching-duration embedded audio generates an implicit `LinkGroup { videoClipID, audioClipID }` at import.
+- **Manual link:** select 2+ clips → context **Link selected** (⌘L). Must be same duration (snap to shortest warns).
+- **Unlink:** context **Unlink** (⇧⌘L) or hold `⌥` while dragging a member to override link for that gesture only.
+- **Ripple respect:** ripple operations traverse link edges — moving a linked video moves its audio in lock-step; ripple-delete removes the whole group.
+- **Data model:** `LinkGroup { id, memberIDs, kind: .sync | .manual }` stored alongside `ClipGroup` in `PersistentTimeline`. Links are orthogonal to Groups: a clip can be in both a Group and a Link Group.
+
+### 7.17 Clip-Level Markers
+
+Distinct from timeline markers (§7.6 beat, user chapter). Clip markers live **inside** a clip tile and travel with the clip on move, trim, or group operations.
+
+- **Add:** `M` shortcut while the clip has focus (timeline playhead inside it); or context menu → **Add marker at playhead**.
+- **Visual:** small vertical pip (3pt wide × full-tile-height, amber at 40% opacity) inside the clip tile. Tap to seek + reveal a small pop-over with **Label** field and 6 color swatches.
+- **Color-coding:** amber (default), red, green, blue, purple, white — for scene / review / take flags.
+- **Editing:** long-press pip → menu **Rename / Recolor / Delete**. Drag to move within clip.
+- **Navigation:** `⌘←` / `⌘→` jump playhead to prev/next clip marker (global across all clips by source-time order).
+- **List view (iPad):** Inspector section **Markers** shows a compact list of all clip markers with color chips + labels + timecodes.
+- **Data model:** each `Clip` gains an optional `[ClipMarker]` array; `ClipMarker { id, positionInClip: TimeMicros, label, color }`.
+
+### 7.18 Additional Audio Effects
+
+Extends the Audio tab beyond EQ / Pitch / Denoise / Volume / Pan / Normalize. Each is a per-clip effect in an audio effect chain; chain ordering matches the UI ordering (Reverb → Delay → Compression → Gate → Limiter by default), user-reorderable (drag in Inspector).
+
+- **Reverb** — Room-preset chips (Room / Hall / Cathedral / Plate / Spring) + Size / Decay / Pre-delay / Mix sliders.
+- **Delay** — Time (ms) / Feedback / Mix sliders + **Sync to beat** toggle (locks Time to project BPM from §7.6).
+- **Compression** — Threshold (dB) / Ratio / Attack (ms) / Release (ms) / Makeup gain; mini amp-meter shows gain reduction.
+- **Gate** — Threshold / Attack / Hold / Release sliders.
+- **Limiter** — Ceiling (dB) + Auto-release toggle; output-peak indicator.
+
+Sub-panel pattern: each tool’s sub-panel uses `ContextSubPanel` (§2.5). Bypass toggle + intensity (wet/dry) per effect. Effect chain persists in `AudioEffectChain` on the clip (`[AudioEffect]` codable array).
 
 ---
 
@@ -721,12 +799,21 @@ Default order: Split / Trim / Speed / Mask / Keyframes / Tracking. User-customiz
 | ⌘A | Select all at playhead |
 | ⌘X | Cut clip (copy + remove; respects ripple) |
 | ⌘G / ⇧⌘G | Group / Ungroup selection |
+| ⌘⌥G | Convert Group → Compound Clip (§7.13) |
+| ⌘L / ⇧⌘L | Link / Unlink selected (§7.16) |
+| F | Match frame (§7.15) |
+| M | Add clip marker at playhead (§7.17) |
+| ⌘← / ⌘→ | Previous / next clip marker |
+| , | Insert source at playhead (§7.14) |
+| . | Overwrite source at playhead (§7.14) |
+| F9 / F10 | 3-point / 4-point edit (§7.14) |
+| N | Replace at playhead (§7.14) |
 | ⌥ ← / → | Nudge selected clip(s) ±1 frame |
 | ⌥⇧ ← / → | Nudge selected clip(s) ±1 second |
 | `\` | Zoom to fit entire project |
 | ⌘⇧0 | Zoom to selection |
 | I | Toggle Insert ↔ Overwrite mode |
-| Esc | Exit group / deselect all / dismiss sub-panel |
+| Esc | Exit group / exit compound / deselect all / dismiss sub-panel |
 
 Exposed via `UIKeyCommand` in `KeyboardShortcutProvider`; discoverable via Hold-⌘ overlay.
 
@@ -867,6 +954,7 @@ Swap is atomic at seek boundaries — never mid-frame. The playback engine expos
 - **Supporting:** `MediaPickerSheet`, `VoiceOverModal`, `AutoCaptionsReviewView`, `ProjectSettingsSheet`, `EmptyStateView`, `OnboardingSheet`, `PermissionPrimerSheet`, `CameraCaptureView`, `UndoHistoryScrubber`.
 - **Proxy pipeline (§10.9):** `ProxyService` (orchestrator), `ProxyGenerator` (actor running `AVAssetExportSession`), `ProxyStorageManager` (disk quota + LRU eviction), `ProxyStatusView` (clip-tile PXY chip + progress bar).
 - **Clip operations (§7.10–7.12):** `ClipGroupView` (bracket + label + breadcrumb + nesting), `CustomExportPresetEditor` (full form + save-as + validation + live estimate), `TransformControls` (flip / rotate / crop / blend), `AudioPanControl`, `AudioNormalizePanel`, `TimelineOpsRegistry` (keyboard + context-menu + toolbar command registry).
+- **Advanced clip operations (§7.13–7.18):** `CompoundClipShell` (internal timeline entry/exit + breadcrumb + render cache), `SourceMonitor` (second preview surface + IN/OUT + J/K/L), `ThreePointEditCommands` (insert/overwrite/3-point/4-point/replace), `MatchFrameAction`, `LinkGroupIndicator` (underline + glyph + ripple traversal), `ClipMarkerLayer` (pip rendering + label pop-over + color palette), `AudioEffectsShelf` (Reverb / Delay / Compression / Gate / Limiter).
 - **Timeline internals:** `AudioWaveformView`, `BeatMarkerLayer`, `ChapterMarkerLayer`, `RippleEditController`.
 
 ### 11.4 View models
