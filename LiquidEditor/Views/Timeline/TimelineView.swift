@@ -21,6 +21,12 @@ struct TimelineView: View {
     @Bindable var viewModel: TimelineViewModel
     @Bindable var playbackViewModel: PlaybackViewModel
 
+    /// Optional auto-follow-playhead preference (T7-35). When `true` and
+    /// playback is running, the viewport scrolls to keep the playhead in
+    /// view. When `nil` (default), auto-follow is disabled — preserves
+    /// backwards compatibility for call-sites that haven't wired it yet.
+    var autoFollowPlayhead: Bool = false
+
     // MARK: - Local State
 
     @State private var containerSize: CGSize = .zero
@@ -147,6 +153,10 @@ struct TimelineView: View {
             .onChange(of: size) { _, newSize in
                 containerSize = newSize
                 viewModel.updateViewportSize(width: newSize.width, height: newSize.height)
+            }
+            .onChange(of: playbackViewModel.currentTime) { _, newTime in
+                // T7-35: auto-follow playhead during playback.
+                applyAutoFollowIfNeeded(currentTime: newTime)
             }
             .gesture(pinchZoomGesture)
             .clipped()
@@ -696,6 +706,51 @@ struct TimelineView: View {
                 viewModel.isScrubbingTimeline = false
                 playbackViewModel.seek(to: playbackViewModel.currentTime)
             }
+    }
+
+    // MARK: - Auto-Follow Playhead (T7-35)
+
+    /// Scroll the timeline to keep the playhead visible while playing.
+    ///
+    /// No-op when:
+    /// - `autoFollowPlayhead` is false
+    /// - playback is paused
+    /// - the user is actively scrubbing (do not fight their finger)
+    ///
+    /// Strategy: when the playhead is within the trailing 15% of the
+    /// visible range, advance `viewport.scrollPosition` so the playhead
+    /// returns to the leading 30%. This mirrors Premiere/DaVinci
+    /// "page-scroll" behavior and avoids jitter compared to a
+    /// continuous center-lock.
+    private func applyAutoFollowIfNeeded(currentTime: TimeMicros) {
+        guard autoFollowPlayhead,
+              playbackViewModel.isPlaying,
+              !viewModel.isScrubbingTimeline
+        else { return }
+
+        let viewport = viewModel.viewport
+        let visible = viewport.visibleTimeRange
+        let visibleDuration = visible.end - visible.start
+        guard visibleDuration > 0 else { return }
+
+        let trailingTriggerRatio = 0.85
+        let leadingTargetRatio = 0.30
+
+        let trigger = visible.start + TimeMicros(
+            Double(visibleDuration) * trailingTriggerRatio
+        )
+
+        guard currentTime >= trigger else { return }
+
+        let newScroll = max(
+            0,
+            currentTime - TimeMicros(Double(visibleDuration) * leadingTargetRatio)
+        )
+
+        viewModel.viewport = viewport.withScrollPosition(
+            newScroll,
+            maxPosition: viewModel.totalDuration
+        )
     }
 
     // MARK: - Clip Interaction Handlers
