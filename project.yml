@@ -64,6 +64,10 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationAllButUpsideDown"
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Liquid Editor needs access to your photo library so you can import videos and photos into your projects."
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Liquid Editor needs permission to save your exported videos to your photo library."
+        INFOPLIST_KEY_NSCameraUsageDescription: "Liquid Editor uses the camera to record video directly into your projects."
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Liquid Editor uses the microphone to record voice overs and audio for your projects."
         PRODUCT_BUNDLE_IDENTIFIER: com.liquideditor.app
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
