@@ -18,14 +18,15 @@
 
 ## 1. Summary & Critical Path
 
-- **Epics:** 17 (Epic 0 Decisions → Epic 16 iPad Platform Extras).
-- **Tasks:** 266 total.
-- **Total estimated effort:** ~355 engineer-days.
+- **Epics:** 18 (Epic 0 Decisions → Epic 17 OS Platform Integration).
+- **Tasks:** 297 total.
+- **Total estimated effort:** ~400 engineer-days.
 - **Revision 2 (2026-04-18):** 142 → 174 (added domain models + iPad extras + export presets/destinations + creative engines + library CRUD + timeline extras + platform foundation).
 - **Revision 3 (2026-04-18):** 174 → 208 after paragraph-by-paragraph spec audit. Added: Editor chrome buttons (project chip dropdown, app Settings, avatar menu, You tab, Drafts, New Project flow), preview gestures (pinch/pan/double-tap/overlays), compute engines behind specced UI (chroma key compute, curves/HSL pipelines, stabilization algorithms, dialog detection, speed-bake, .cube parser), per-clip data models for tracking + mask, timeline execution logic (Slip/Roll/Slide, multi-clip batch ops, track reordering, add/remove track, clip clipboard, Properties view), library search + URL import, content tasks (LUT library + font management), polish (effect-stack reorder, caption export SRT/VTT, export cancel cleanup, global snap settings, custom color picker).
 - **Revision 4 (2026-04-18):** 208 → 218 after adding Proxy Rendering Pipeline (spec §10.9): `ProxyService` orchestrator, `ProxyGenerator` actor, storage manager with LRU, playback routing (proxy for preview, original for export), UI surfaces (PXY clip chip, App Settings Proxies section, Inspector per-clip override, import pill secondary line), and testing.
 - **Revision 5 (2026-04-18):** 218 → 244 after adding timeline operations + custom export editor + clip grouping. Spec gains §5.6 Custom Export Preset Editor, §7.10 Clip Grouping / Compound Clips, §7.11 Timeline Operations Catalog, §7.12 Per-Clip Transform & Blend. Tasks added: custom preset editor, clip grouping + nesting, clip nudge, z-order (front/back), blend modes, select-all helpers, insert/overwrite mode, cut, collapse-gap, flip H/V, quick rotate, crop, auto-follow playhead, zoom-to-fit/selection, audio pan, audio normalize, new data models + inspector rows + keyboard shortcuts.
 - **Revision 6 (2026-04-18):** 244 → 266 after adding true compound clips, source-monitor 3-point editing, match-frame, link/unlink, clip-level markers, and additional audio effects. Spec gains §7.13 True Compound Clips, §7.14 Source Monitor + 3/4-point Editing, §7.15 Match Frame, §7.16 Link/Unlink Clips, §7.17 Clip-Level Markers, §7.18 Additional Audio Effects (Reverb / Delay / Compression / Gate / Limiter). Tasks added: compound-clip render + shell, source monitor + 3/4-point commands, match-frame, link-group auto + manual + ripple traversal, clip markers (add/pip/label/navigate), five audio-effect panels + audio DSP chain, four new data models, inspector rows, keyboard shortcuts.
+- **Revision 7 (2026-04-18):** 266 → 297 after end-to-end implementation audit. Spec gains §9.2.3 VO input source + monitor, §9.12.1 sample project, §9.12.2 What's New, §10.10 OS Platform Integration (Dynamic Island + Live Activity, URL scheme + deep linking, Spotlight, widgets, Shortcuts App Intents, Focus filters, multi-window iPad, drag-out), §10.11 Timeline Rendering Details (clip thumbnail strips, snap guides, drag-edge auto-scroll, zoom LOD table, HDR preview pipeline). Adds **Epic 17 OS Platform Integration** plus tasks in Epics 0, 1, 2, 6, 7, 10, 12, 15, 16 covering privacy manifest, entitlements, keyboard-focus-aware shortcut gating, sample project, What's New, VO input + monitor, export filename template, pre-export disk check, VFR handling, crash reporting, App Store review prompt, clip thumbnail strip + cache, snap guide overlay, auto-scroll controller, zoom LOD, HDR pipeline, library UI state, Scribble support, VoiceOver custom actions, multi-window, drag-out, external display.
 - **With 4 parallel streams:** critical path is **~7 weeks** (35 working days).
 - **With 2 parallel streams:** ~10–12 weeks.
 
@@ -112,6 +113,8 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F0-8 | Launch screen + status-bar appearance (dark canvas, amber accent mark) | S | F0-5 | global | A | ○ |
 | F0-9 | App-level **Settings screen** (distinct from Project Settings): default export preset, haptics master toggle, analytics opt-in, show-welcome-tour, about/licenses/credits, diagnostics | M | F0-2 | §9.12, §10.6 | A | ○ |
 | F0-10 | **Proxy defaults config**: feature flag + baked defaults (threshold > 1080p, 720p H.264 5 Mbps, 5 GB cap) wired into `ServiceContainer` | S | — | §10.9.1 | A | ○ |
+| F0-11 | **Privacy manifest** (`PrivacyInfo.xcprivacy`): required-reason-API declarations, NSPrivacyAccessedAPITypes, NSPrivacyTracking (false in v1), tracking-domains list | S | — | App Store requirement | A | ○ |
+| F0-12 | **Entitlements audit** + `Info.plist` verification: Photos / Camera / Microphone / iCloud / Background / ATS / supported orientations per-scene | S | F0-6 | §2.7 + App Store requirement | A | ○ |
 
 ### Epic 1 — Shared Primitives
 
@@ -134,6 +137,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | P1-15 | `PermissionPrimerSheet` generic template (hero + rationale + grant + “not now”) | S | F0-1 | §9.13 | A | ○ |
 | P1-16 | `SnapshotService`: capture thumbnail + diff-label at every committed edit; backing store for §9.8 history scrubber | L | D0-4 | §9.8 | A | ○ |
 | P1-17 | **Custom color picker** (HSB + hex + eyedropper on preview + saved-colors row); used by Text §8.1, color swatches, chroma fill-behind | M | F0-1 | §8.1.2, §7.9 | A | ○ |
+| P1-18 | **Keyboard-focus-aware shortcut gating**: `UIKeyCommand`s disabled while a text field / editable is first-responder; re-enabled on blur | S | P1-9 | §10.5 | A | ○ |
 
 ### Epic 2 — Screen Skeletons
 
@@ -164,6 +168,8 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | S2-23 | Export cancel-mid-render cleanup: stop `AVAssetExportSession`, delete partial output, reset queue entry, clear error log | S | S2-10 | §5.4 | C | ○ |
 | S2-24 | **App Settings › Proxies** section: master toggle, threshold picker (Off/≥1080p/≥4K/Always), cap selector (1/5/20 GB/Unlimited), live disk-usage readout, destructive **Clear all proxies** | M | F0-9, PP12-8, PP12-11 | §10.9.6 | A | ○ |
 | S2-25 | **Custom Export Preset Editor**: full-form UI (Video/Audio/Color/Advanced sections), named-preset save/edit/delete, validation banner for invalid combos, live size estimator reuse (S2-14), saved-presets list in preset segmented | XL | S2-10, S2-12, S2-14, M15-9 | §5.6 | C | ○ |
+| S2-26 | **Sample project** seeded on first-launch: bundled assets (≤ 10 MB) — 1 video + 1 audio + text-w-animation + transition + color grade. Label “Sample · Explore me” | M | F6-7, S2-5 | §9.12.1 | E | ○ |
+| S2-27 | **What's New** sheet: shown after update that bumps notable-version marker; 3–5 highlights + screenshots; re-accessible via Settings → About | M | F0-9 | §9.12.2 | A | ○ |
 
 ### Epic 3 — Editor Tab Wiring
 
@@ -252,6 +258,13 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F6-18 | **Library search implementation**: name match + date filter + tag-filter; debounced; empty/no-results states from P1-8 | M | S2-5, S2-6, P1-7 | §4.1 | C | ○ |
 | F6-19 | **Caption export** as SRT + VTT sidecar: when captions exist, Export destination also writes `.srt` + `.vtt` next to the video | M | F6-3, S2-13 | §9.3 | E | ○ |
 | F6-20 | **Proxy generation progress UI**: secondary line on the F6-8 import pill (“Generating 2 proxies · 62%”) + thin amber bar on each clip tile while its proxy generates + non-blocking fallback toast on failure | M | F6-8, PP12-8, PP12-9 | §10.9.3, §10.9.6 | E | ○ |
+| F6-21 | **VO input source selector** (Built-in / AirPods / Bluetooth / External USB) reflecting `AVAudioSession` available inputs | S | F6-2 | §9.2.3 | E | ○ |
+| F6-22 | **VO monitor toggle** (hear self while recording) with feedback-loop protection (auto-mute if speaker active) | S | F6-2 | §9.2.3 | E | ○ |
+| F6-23 | **Export filename template**: `{project}-{preset}-{timestamp}.{ext}`; configurable in App Settings; collision suffix `-2`, `-3`… | S | F0-9, S2-13 | §5.2 | C | ○ |
+| F6-24 | **Pre-export disk space check**: before starting `AVAssetExportSession`, verify free space > estimated size × 1.5; otherwise offer Clear Proxies / Cancel | S | S2-10, S2-14, PP12-11 | §5.4 | C | ○ |
+| F6-25 | **VFR handling on import**: detect variable frame rate; flag via `VFR` chip on clip; proxy generator auto-converts to CFR at project frame rate | M | F6-8, PP12-9 | §9.7 | E | ○ |
+| F6-26 | **Crash reporting SDK** integration (OSLog + `MetricKit` MXCrashDiagnosticPayload; optional third-party post-install if ATT opted-in) | M | F0-11 | App Store + support loop | A | ○ |
+| F6-27 | **App Store review prompt** (`SKStoreReviewController`) triggered after positive moments: 3rd successful export, 5th project save; throttled to once per major version | S | S2-10 | App Store | A | ○ |
 
 ### Epic 7 — Timeline Core Enhancements
 
@@ -297,6 +310,10 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | T7-38 | **Clip-level markers**: add via `M` when clip focused; pip rendering inside clip tile; label pop-over; 6 color swatches; drag-to-move within clip; `⌘←/→` prev/next navigation across all clips | M | M15-12, T7-1 | §7.17 | B | ○ |
 | T7-39 | **Compound clip render**: flatten internal timeline through `MultiTrackCompositor` to single video+audio source; cache by `(compoundID, contentHash)`; invalidate on descendant commit | L | E4-15, M15-10 | §7.13 | B | ○ |
 | T7-40 | **Compound-nesting perf guardrails**: warn banner at 10 levels; hard cap 20; disable further conversion when at cap | S | T7-39 | §7.13 | B | ○ |
+| T7-41 | **Clip thumbnail strip** rendering on each video clip tile: 1 thumb per 20pt width; off-main decode; LRU cached; invalidated on trim/speed/replace; gradient fallback when thumb < 16pt wide | L | S2-1, PP12-14 | §10.11.1 | B | ○ |
+| T7-42 | **Snap guide lines**: vertical amber guides when dragging snaps to playhead / adjacent edge / beat / chapter / ruler-major-tick; 180ms fade; selection haptic at snap | S | T7-3, T7-4 | §10.11.2 | B | ○ |
+| T7-43 | **Drag-edge auto-scroll** on clip/playhead drag: threshold 40pt; scroll rate up to 3 viewports/sec; vertical scroll for cross-track drag | S | T7-3 | §10.11.3 | B | ○ |
+| T7-44 | **Timeline zoom LOD**: tier-based hiding per §10.11.4 table; transitions via `LiquidMotion.glide` | M | T7-2, T7-41 | §10.11.4 | B | ○ |
 
 ### Epic 8 — Small Tools (leaf controls, highly parallel)
 
@@ -362,6 +379,8 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | A10-10 | Haptics master toggle in Settings → Accessibility | S | F0-2 | §2.4, §10.6 | A | ○ |
 | A10-11 | Apple Pencil support verification for Mask freehand + Curves + text handles | M | E4-4, C5-7, C5-1 | §10.6 | A | ○ |
 | A10-12 | **VoiceOver hints** (`accessibilityHint`) on complex controls: timeline clips ("double-tap to select, swipe up for actions"), transport buttons, gesture-heavy surfaces | M | A10-1 | §10.6 | A | ○ |
+| A10-13 | **Scribble support**: Apple Pencil handwriting into text fields (project rename, clip marker label, caption segment edit, custom preset name) | S | A10-11 | §10.6 | A | ○ |
+| A10-14 | **VoiceOver custom actions** on timeline clips: Split / Delete / Duplicate / Properties accessible via rotor swipe-up | M | A10-1, A10-2, T7-19 | §10.6 | A | ○ |
 
 ### Epic 11 — Keyboard Shortcuts (iPad)
 
@@ -394,6 +413,8 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | PP12-11 | **`ProxyStorageManager`**: disk-quota enforcement + LRU eviction + system low-storage handler (drop to 50% cap); reports live disk-usage | M | PP12-8 | §10.9.7 | A | ○ |
 | PP12-12 | **Clip-tile PXY chip** + per-clip proxy-progress bar (tertiary chip bottom-left when `usingProxy`; amber bar while generating) | S | PP12-10, F6-20 | §10.9.6 | B | ○ |
 | PP12-13 | **Audio DSP pipeline extensions** for new effects: reverb IR conv (cached per preset), delay ring buffer, compressor envelope follower, gate & limiter state; integrate into existing `AudioEffectsEngine`; real-time capable in preview | L | M15-13 | §7.18, §10.7 | B | ○ |
+| PP12-14 | **`ClipThumbnailCache`**: LRU 400 / ≈15 MB; off-main decode (`AVAssetImageGenerator` async); per-(clipID, time-bucket) key; invalidates on clip edit | M | — | §10.7, §10.11.1 | A | ○ |
+| PP12-15 | **HDR preview pipeline**: 10-bit render path; HDR display passthrough; SDR display tone-mapped via ITU-R BT.2446 Method A; preview **HDR** chip indicator | L | — | §10.11.5 | A | ○ |
 
 ### Epic 13 — Testing
 
@@ -437,6 +458,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | M15-11 | **`LinkGroup` model**: `{ id, memberIDs, kind: .sync \| .manual }` alongside `ClipGroup` in `PersistentTimeline`; auto-link on matching-duration import | M | — | §7.16 | B | ○ |
 | M15-12 | **`ClipMarker` model**: per-clip `[ClipMarker]` array; `{ id, positionInClip, label, color }`; Codable; travels with clip on trim/move/group | S | — | §7.17 | B | ○ |
 | M15-13 | **`AudioEffectChain` + `AudioEffect` models**: per-clip chain of Reverb / Delay / Compression / Gate / Limiter with params + bypass + order; Codable | M | — | §7.18 | B | ○ |
+| M15-14 | **`LibraryUIState`** model: sidebar selection, grid/list mode, sort order, filter state; persisted in user defaults | S | — | §4.2 | A | ○ |
 
 ### Epic 16 — iPad Platform Extras
 
@@ -445,6 +467,21 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | IP16-1 | Pointer hover effects: `.pointerStyle(.link)` on tappable, `.horizontalText` on trim handles, `.grabIdle` on timeline scroll, `.rectangle` on lasso area | M | S2-2 | §10.6 | A | ○ |
 | IP16-2 | System drag-drop receiver: `.onDrop(of:)` on timeline + media browser for Photos, Files, Safari URLs; type coercion + import pipeline | M | F6-1 | §9.7 | A | ○ |
 | IP16-3 | Multitasking: verify Slide Over / Split View / Stage Manager layouts; auto-collapse to compact when width < 640pt | M | S2-2, S2-6, S2-9 | §2.6 | A | ○ |
+| IP16-4 | **Multi-window** (`UIWindowScene` + `UISceneConfiguration`): each editor scene has its own `EditorViewModel`; drag card to right edge opens in new scene; cross-scene copy/paste | L | S2-2, T7-14 | §10.10.7 | A | ○ |
+| IP16-5 | **Drag-out**: drag clip / project-card / exported file out of app via `DragPreview` + `NSItemProvider`; `public.movie` / `public.audio` / `public.image` payloads; silent export for full-project drag | M | S2-13, OS17-1 | §10.10.8 | A | ○ |
+| IP16-6 | **External display support** (AirPlay + connected display): mirror mode + extended mode (preview full-screen on ext display, editor UI on iPad) | M | T7-12 | global | A | ○ |
+
+### Epic 17 — OS Platform Integration
+
+| ID | Title | Size | Depends | Spec | Stream | Status |
+|---|---|---|---|---|---|---|
+| OS17-1 | **Dynamic Island integration**: export progress ring (compact/expanded/minimal variants) + VO recording pulsing indicator with elapsed time | M | S2-10, F6-2 | §10.10.1 | A | ○ |
+| OS17-2 | **Live Activity for export** (`ActivityKit`): Lock Screen banner + Dynamic Island; ends on completion / cancel; tap opens Export screen | M | S2-10, OS17-1 | §10.10.1 | A | ○ |
+| OS17-3 | **URL scheme + deep linking**: `liquideditor://` handling for `open` / `import` / `new`; Universal Links if domain registered; amber confirmation pill before acting | M | S2-18, F6-17 | §10.10.2 | A | ○ |
+| OS17-4 | **Spotlight indexing** via `CoreSpotlight`: title + last-edited + thumbnail + duration + clip count; 10s debounced updates; removed on trash | M | P1-16, OS17-3 | §10.10.3 | A | ○ |
+| OS17-5 | **Home Screen widgets** (WidgetKit target): Recent Projects Small/Medium/Large + Quick Actions Medium + Lock Screen rectangular; 15-min refresh | L | S2-5, OS17-3 | §10.10.4 | A | ○ |
+| OS17-6 | **App Intents** (Shortcuts): `CreateNewProjectIntent`, `OpenProjectIntent`, `ExportProjectIntent`, `ImportMediaIntent` + Siri phrase donation on success | L | S2-18, S2-10, F6-17 | §10.10.5 | A | ○ |
+| OS17-7 | **Focus Filter support** (`FocusFilterIntent`): hide/show collections based on active Focus; also filters Spotlight + widgets | S | OS17-4, OS17-5, F6-13 | §10.10.6 | A | ○ |
 
 ---
 
@@ -472,8 +509,12 @@ All of these can start **simultaneously on day 1**:
 18. **M15-7, M15-8, M15-9** (ClipGroup, clip transform fields, custom export preset) — stream B/C. Pure data-model work, no UI deps.
 19. **M15-11, M15-12, M15-13** (LinkGroup, ClipMarker, AudioEffectChain) — stream B. Pure data models.
 20. **PP12-13** (audio DSP pipeline) — stream B. Extends existing AudioEffectsEngine.
+21. **F0-11** (privacy manifest), **F0-12** (entitlements audit) — stream A. App-Store-required; no code dependencies.
+22. **PP12-14** (thumbnail cache), **PP12-15** (HDR pipeline) — stream A. Independent infrastructure.
+23. **M15-14** (library UI state) — stream A. Pure data-model.
+24. **OS17-3** (URL scheme) — stream A. Foundation for Spotlight + Widgets + Intents; start early so downstream OS tasks can wire in.
 
-After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-17) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
+After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-18) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
 
 ---
 
@@ -496,25 +537,26 @@ Resolve these decisions ASAP; every day of delay slides the schedule by the same
 
 Update the per-task `Status` column (`○ → ◔ → ●`) as work progresses. Quick counters to track manually:
 
-- Epic 0: 0 / 16 done
-- Epic 1: 0 / 17 done
-- Epic 2: 0 / 25 done
+- Epic 0: 0 / 18 done
+- Epic 1: 0 / 18 done
+- Epic 2: 0 / 27 done
 - Epic 3: 0 / 6 done
 - Epic 4: 0 / 16 done
 - Epic 5: 0 / 26 done
-- Epic 6: 0 / 20 done
-- Epic 7: 0 / 40 done
+- Epic 6: 0 / 27 done
+- Epic 7: 0 / 44 done
 - Epic 8: 0 / 17 done
 - Epic 9: 0 / 21 done
-- Epic 10: 0 / 12 done
+- Epic 10: 0 / 14 done
 - Epic 11: 0 / 9 done
-- Epic 12: 0 / 13 done
+- Epic 12: 0 / 15 done
 - Epic 13: 0 / 9 done
 - Epic 14: 0 / 6 done
-- Epic 15: 0 / 13 done
-- Epic 16: 0 / 3 done
+- Epic 15: 0 / 14 done
+- Epic 16: 0 / 6 done
+- Epic 17: 0 / 7 done
 
-**Total: 0 / 266 tasks done**
+**Total: 0 / 297 tasks done**
 
 ---
 

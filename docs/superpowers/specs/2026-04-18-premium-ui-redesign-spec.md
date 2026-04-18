@@ -614,6 +614,12 @@ Each preset animates its own chip on tap.
 
 #### 9.2.2 Punch-in — overwrites only selected range; playback starts 1s before range; auto-stops at range end.
 
+#### 9.2.3 Input source + monitor
+
+- **Input source selector** at top of the modal: Built-in / AirPods / Bluetooth / External USB; reflects `AVAudioSession` available inputs.
+- **Monitor toggle** (hear your voice during recording): off by default; when on, routes input through the output with feedback protection (auto-mutes if speaker would cause loop).
+- **Sample rate**: 48 kHz / 16-bit in v1 (matches Captions STT requirements).
+
 ### 9.3 Auto-Captions Review
 
 - Preview with word-pop (highlighted amber pill, others translucent black).
@@ -658,6 +664,7 @@ Template: hero illustration + title + subtitle + optional primary CTA + escape-h
 - Files / URL → native picker → import progress toast.
 - **Global import progress:** bottom-pinned floating glass pill “Importing 3 • 72%”; tap expands a per-item sheet with cancel.
 - **Proxy generation (§10.9)** kicks off automatically for eligible imports. Progress is shown as a secondary line on the import pill and as a thin bar along the clip tile until each proxy is ready.
+- **VFR (variable frame rate) sources** (common in phone captures) auto-convert to CFR at project frame rate during proxy generation (§10.9); originals kept intact. Un-proxied VFR clips display a small **VFR** chip and use timestamp-based frame resolution.
 
 ### 9.8 Undo History Scrubber
 
@@ -701,6 +708,16 @@ Template: hero illustration + title + subtitle + optional primary CTA + escape-h
 - Skippable via “Skip” top-right.
 - Re-entry: Settings → About → “Show welcome tour”.
 - No in-app tooltip tours; contextual help lives in empty states.
+
+#### 9.12.1 Sample project
+
+- Seeded on first launch: one video clip + one audio clip + one text overlay with animation + one transition + one basic color grade. Label “Sample · Explore me”. User may open / edit / delete freely.
+- Bundled assets total ≤ 10 MB; every major tab drill-down has something to act on.
+
+#### 9.12.2 What's New screen
+
+- On launch after an update that bumps the notable-version marker, show a full-screen (iPhone) / large-detent (iPad) sheet with 3–5 highlighted changes + screenshots.
+- Amber **Done** dismisses. Re-accessible via Settings → About → “What's new”.
 
 ### 9.13 Permission Flows
 
@@ -850,6 +867,94 @@ Exposed via `UIKeyCommand` in `KeyboardShortcutProvider`; discoverable via Hold-
 - Fallback during cache miss: tertiary placeholder.
 - Accessibility: `.accessibilityHidden(true)` on the image; clip title/duration remain readable.
 
+### 10.10 OS Platform Integration
+
+Beyond the in-app editor surfaces, the app integrates with system-level iOS/iPadOS 26 features.
+
+#### 10.10.1 Dynamic Island + Live Activity
+
+- **Export in progress** surfaces as a Live Activity (iOS 16+): Lock Screen banner + Dynamic Island compact/expanded/minimal variants. Shows project name + ring progress arc + ETA. Tap opens Export screen.
+- **Voice-over recording** surfaces as a Dynamic Island pulsing red indicator with elapsed time while the app is backgrounded or in Split View. Tap returns to VO modal.
+- Both use `ActivityKit` with `ActivityAttributes`. Activities end automatically on completion; user can swipe to dismiss.
+
+#### 10.10.2 URL Scheme + Deep Linking
+
+- Custom scheme `liquideditor://` supports `open?project=<id>`, `import?url=<media-url>`, `new?template=<id>`.
+- Universal Links resolve same paths via HTTPS if a web domain is registered.
+- Incoming URLs surface an amber confirmation pill before acting — never auto-execute destructive operations.
+
+#### 10.10.3 Spotlight Indexing
+
+- Each project indexed via `CoreSpotlight`: title, last-edited date, thumbnail, duration, clip count, collection tags.
+- Tap result → `liquideditor://open?project=<id>` deep link. Index updates debounced 10s after commit. Trashed projects removed.
+
+#### 10.10.4 Home Screen Widgets (WidgetKit)
+
+- **Recent Projects** (Small/Medium/Large): 1/4/6 tiles.
+- **Quick Actions** (Medium): New Project / Open Last / Import from URL.
+- Lock Screen widget (rectangular, single recent project).
+- Timeline refresh ≤ every 15 min; snapshots off-main.
+
+#### 10.10.5 Shortcuts / App Intents
+
+- `CreateNewProjectIntent`, `OpenProjectIntent`, `ExportProjectIntent`, `ImportMediaIntent` expose automation surfaces.
+- Siri phrase donation after every successful export.
+
+#### 10.10.6 Focus Filters
+
+- `FocusFilterIntent` lets a user-configured Focus (Work/Personal) hide or restrict Library collections.
+- Hidden projects are also filtered from Spotlight + widgets while Focus is active.
+
+#### 10.10.7 Multi-Window (iPad)
+
+- `UISceneConfiguration` + `UIWindowScene` enable multiple editor windows simultaneously. Each scene has its own `EditorViewModel`.
+- Drag a project card onto the right edge of the window → opens in a new scene. Cross-scene copy/paste via system pasteboard.
+
+#### 10.10.8 Drag-Out
+
+- Drag a clip tile, project card, or exported file out to Photos, Files, Messages via `DragPreview` + `NSItemProvider`.
+- Payload types: `public.movie`, `public.audio`, `public.image`.
+- Full-project drag triggers silent export using the last-used preset; progress via Dynamic Island.
+
+### 10.11 Timeline Rendering Details
+
+Extensions to §10.3 (gestures) covering the render layer.
+
+#### 10.11.1 Clip thumbnail strip
+
+- Each video clip tile renders a horizontal strip of mini-thumbnails (1 per 20pt of clip width) showing actual source frames — not the gradient-only placeholder.
+- Decoded off-main; cached in `ClipThumbnailCache` (LRU 400, ≈15 MB).
+- Invalidation: trim / speed change / replace.
+- LOD: below 16pt per thumbnail, strip collapses to gradient fallback.
+
+#### 10.11.2 Snap guide lines
+
+- Amber vertical guides appear while dragging a clip or trim handle when the drag snaps to: playhead, adjacent clip edge, beat marker, chapter marker, ruler major tick.
+- Guide fades over ~180ms; selection haptic fires at snap.
+
+#### 10.11.3 Drag-edge auto-scroll
+
+- When drag nears 40pt of timeline edge, auto-scrolls proportional to overshoot distance; max 3 viewport-widths/sec.
+- Vertical auto-scroll applies when dragging across track boundaries near top/bottom.
+
+#### 10.11.4 Zoom LOD table
+
+| Zoom tier | Ruler ticks | Thumbs | Labels | Markers | Waveforms |
+|---|---|---|---|---|---|
+| Frame | every frame | full | full | full | full |
+| Sub-second | 0.5s | full | full | full | full |
+| Second | 1s | full | truncated | full | full |
+| Multi-second | 5s | strip only | hidden | full | full |
+| Project-fit | 10s+ | gradient | hidden | major only | downsampled |
+
+Transitions between tiers use `LiquidMotion.glide`.
+
+#### 10.11.5 HDR preview pipeline
+
+- HDR projects (§9.5) render preview through a 10-bit pipeline.
+- HDR display → passthrough. SDR display → tone-mapped via ITU-R BT.2446 Method A.
+- Preview chip **HDR** indicates pipeline is active. Scopes (§8.8) operate in the project’s color space regardless of display.
+
 ### 10.9 Proxy Rendering Pipeline
 
 Proxy rendering generates a low-resolution stand-in copy of each eligible source media on import. The editor plays back from the proxy for smooth scrubbing while the original is used at export. Optional and user-configurable; defaults aim at "just works" for 4K source on A15+ devices.
@@ -955,6 +1060,8 @@ Swap is atomic at seek boundaries — never mid-frame. The playback engine expos
 - **Proxy pipeline (§10.9):** `ProxyService` (orchestrator), `ProxyGenerator` (actor running `AVAssetExportSession`), `ProxyStorageManager` (disk quota + LRU eviction), `ProxyStatusView` (clip-tile PXY chip + progress bar).
 - **Clip operations (§7.10–7.12):** `ClipGroupView` (bracket + label + breadcrumb + nesting), `CustomExportPresetEditor` (full form + save-as + validation + live estimate), `TransformControls` (flip / rotate / crop / blend), `AudioPanControl`, `AudioNormalizePanel`, `TimelineOpsRegistry` (keyboard + context-menu + toolbar command registry).
 - **Advanced clip operations (§7.13–7.18):** `CompoundClipShell` (internal timeline entry/exit + breadcrumb + render cache), `SourceMonitor` (second preview surface + IN/OUT + J/K/L), `ThreePointEditCommands` (insert/overwrite/3-point/4-point/replace), `MatchFrameAction`, `LinkGroupIndicator` (underline + glyph + ripple traversal), `ClipMarkerLayer` (pip rendering + label pop-over + color palette), `AudioEffectsShelf` (Reverb / Delay / Compression / Gate / Limiter).
+- **OS integration (§10.10):** `LiveActivityController` (export + VO Dynamic Island), `DeepLinkRouter`, `SpotlightIndexer`, `LiquidEditorWidgets` (widget extension target), `AppIntentsBundle`, `FocusFilterProvider`, `DragOutProvider`, `MultiWindowSceneDelegate`.
+- **Timeline rendering (§10.11):** `ClipThumbnailStrip` + `ClipThumbnailCache`, `SnapGuideOverlay`, `AutoScrollController`, `ZoomLODResolver`, `HDRPreviewPipeline`.
 - **Timeline internals:** `AudioWaveformView`, `BeatMarkerLayer`, `ChapterMarkerLayer`, `RippleEditController`.
 
 ### 11.4 View models
