@@ -117,6 +117,13 @@ struct EditorView: View {
                         let ms = Int(newTime / 1_000)
                         Task { await viewModel.updateTrackingBoxes(for: ms) }
                     }
+                    .padding(.horizontal, LiquidSpacing.sm)
+                    .padding(.top, LiquidSpacing.sm)
+                    .background(
+                        LiquidColors.Canvas.raised,
+                        in: RoundedRectangle(cornerRadius: LiquidRadius.md, style: .continuous)
+                    )
+                    .padding(.horizontal, LiquidSpacing.sm)
 
                     // Playback controls row (CapCut style)
                     PlaybackControlsView(
@@ -144,17 +151,7 @@ struct EditorView: View {
                 // Hidden keyboard shortcut buttons
                 keyboardShortcutButtons
             }
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(white: 0.12),
-                        Color(white: 0.08),
-                        Color.black
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .background(LiquidColors.Canvas.base.ignoresSafeArea())
             .ignoresSafeArea(.container, edges: .bottom)
         }
         .overlay(alignment: .topLeading) {
