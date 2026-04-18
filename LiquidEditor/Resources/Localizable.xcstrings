@@ -1,0 +1,16 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Liquid. Cut like a pro." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liquid. Cut like a pro."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
