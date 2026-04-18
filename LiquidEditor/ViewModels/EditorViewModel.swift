@@ -563,6 +563,57 @@ final class EditorViewModel {
         }
     }
 
+    /// Halve the playback rate (J key) and keep playing.
+    ///
+    /// Minimum rate is clamped by the engine. Starts playback if paused.
+    func halvePlaybackRate() {
+        Task {
+            guard let engine = playbackEngine else {
+                Self.logger.warning("halvePlaybackRate failed: playback engine is nil")
+                return
+            }
+            let current = await engine.playbackRate
+            let newRate = max(current / 2.0, 0.1)
+            await engine.setPlaybackRate(newRate)
+            await engine.play()
+            await MainActor.run { self.isPlaying = true }
+            Self.logger.debug("Halved playback rate to \(newRate)")
+        }
+    }
+
+    /// Pause playback and reset the playback rate to 1.0× (K key).
+    func pausePlaybackAndResetRate() {
+        Task {
+            guard let engine = playbackEngine else {
+                Self.logger.warning("pausePlaybackAndResetRate failed: playback engine is nil")
+                return
+            }
+            await engine.pause()
+            await engine.setPlaybackRate(1.0)
+            await MainActor.run { self.isPlaying = false }
+            Self.logger.debug("Paused and reset playback rate")
+        }
+    }
+
+    /// Double the playback rate (L key) and keep playing.
+    ///
+    /// Maximum rate is clamped by the engine. Starts playback if paused.
+    func doublePlaybackRate() {
+        Task {
+            guard let engine = playbackEngine else {
+                Self.logger.warning("doublePlaybackRate failed: playback engine is nil")
+                return
+            }
+            let current = await engine.playbackRate
+            // If paused (rate ~ 0 or 1), start at 2.0x; otherwise double.
+            let newRate = current < 1.0 ? 2.0 : min(current * 2.0, 16.0)
+            await engine.setPlaybackRate(newRate)
+            await engine.play()
+            await MainActor.run { self.isPlaying = true }
+            Self.logger.debug("Doubled playback rate to \(newRate)")
+        }
+    }
+
     /// Seek to a specific time.
     ///
     /// - Parameter time: Target time in microseconds.
