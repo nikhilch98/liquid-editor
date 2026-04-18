@@ -79,6 +79,7 @@ targets:
         product: OrderedCollections
       - package: swift-algorithms
         product: Algorithms
+      - target: LiquidEditorWidgets
 
   LiquidEditorTests:
     type: bundle.unit-test
@@ -98,3 +99,24 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
     dependencies:
       - target: LiquidEditor
+
+  LiquidEditorWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LiquidEditorWidgets
+        excludes:
+          - "Info.plist"
+      # Shared files so ActivityConfiguration(for:) and the widget UI
+      # both resolve `ExportLiveActivityAttributes`.
+      - path: LiquidEditor/Services/Platform/DynamicIslandPresenter.swift
+      - path: LiquidEditor/Services/Platform/ExportLiveActivityWidget.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.liquideditor.app.widgets
+        INFOPLIST_FILE: LiquidEditorWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+        SKIP_INSTALL: "YES"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: TJ9YTH589R
