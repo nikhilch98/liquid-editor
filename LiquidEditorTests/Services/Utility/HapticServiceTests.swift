@@ -10,9 +10,9 @@ struct HapticServiceTests {
     @Suite("EditorHapticType")
     struct HapticTypeTests {
 
-        @Test("allCases contains 9 haptic types")
+        @Test("allCases contains 10 haptic types")
         func allCasesCount() {
-            #expect(EditorHapticType.allCases.count == 9)
+            #expect(EditorHapticType.allCases.count == 10)
         }
 
         @Test("Each haptic type has a unique rawValue")
