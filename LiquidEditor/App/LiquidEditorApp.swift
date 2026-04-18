@@ -24,6 +24,11 @@ struct LiquidEditorApp: App {
 
     // MARK: - State
 
+    /// IP16-4: UIApplicationDelegate adaptor. Provides a hook for
+    /// multi-window scene configuration and external-display
+    /// notifications without leaving the SwiftUI App lifecycle.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     /// Scene phase for background/inactive lifecycle events.
     @Environment(\.scenePhase) private var scenePhase
 
@@ -81,6 +86,15 @@ struct LiquidEditorApp: App {
             }
             .onChange(of: scenePhase) { _, phase in
                 handleScenePhase(phase)
+            }
+            // IP16-4: multi-window — secondary scenes opened via
+            // `MultiWindowController.openProjectInNewWindow(_:)` carry
+            // an NSUserActivity whose userInfo names the target project.
+            .onContinueUserActivity(MultiWindowController.openProjectActivityType) { activity in
+                guard let projectId = activity.userInfo?[MultiWindowController.projectIdKey] as? String else {
+                    return
+                }
+                coordinator.navigateToEditor(projectId: projectId)
             }
         }
     }

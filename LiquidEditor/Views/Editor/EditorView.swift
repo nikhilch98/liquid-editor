@@ -49,6 +49,12 @@ struct EditorView: View {
     /// Dismiss action for navigation.
     @Environment(\.dismiss) private var dismiss
 
+    /// IP16-2: system drag-drop receiver for incoming media.
+    @State private var dragDropReceiver = DragDropReceiver()
+
+    /// IP16-2: whether a drag is currently over the editor canvas.
+    @State private var isDropTargeted: Bool = false
+
     // MARK: - Initialization
 
     /// Creates an editor view for the given project.
@@ -147,6 +153,11 @@ struct EditorView: View {
                 }
             }
             .environment(\.formFactor, formFactor)
+            // IP16-3: multitasking layout mode — observed by inspector
+            // / toolbar density adjustments in descendant views.
+            .observeMultitaskingLayout()
+            // IP16-2: drag-drop media receiver anchored at editor root.
+            .dragDropReceiver(dragDropReceiver, isTargeted: $isDropTargeted)
             .overlay {
                 // Hidden keyboard shortcut buttons
                 keyboardShortcutButtons
@@ -258,6 +269,7 @@ struct EditorView: View {
             IconButton(systemName: "xmark", accessibilityLabel: "Close editor") {
                 dismiss()
             }
+            .pointerHover()
 
             Rectangle()
                 .fill(LiquidStroke.hairlineColor)
@@ -300,6 +312,7 @@ struct EditorView: View {
             PrimaryCTA(title: "Export") {
                 viewModel.showExportSheet = true
             }
+            .pointerHover(.lift)
         }
         .padding(.horizontal, LiquidSpacing.md)
         .frame(height: 52)

@@ -56,6 +56,12 @@ struct ProjectLibraryView: View {
     /// Whether the batch delete confirmation dialog is showing.
     @State private var showBatchDeleteConfirmation: Bool = false
 
+    /// IP16-2: system drag-drop receiver for incoming files.
+    @State private var dragDropReceiver = DragDropReceiver()
+
+    /// IP16-2: drop target state (outline/highlight while hovering).
+    @State private var isDropTargeted: Bool = false
+
     /// Initialize with injected repository dependencies.
     init(
         projectRepository: any ProjectRepositoryProtocol,
@@ -100,6 +106,10 @@ struct ProjectLibraryView: View {
                 .padding(.trailing, LiquidSpacing.lg)
                 .padding(.bottom, LiquidSpacing.tabBarHeight + LiquidSpacing.xxxl)
         }
+        // IP16-3: multitasking layout — publishes \.layoutMode to children.
+        .observeMultitaskingLayout()
+        // IP16-2: accept drag-drop from external apps at the library root.
+        .dragDropReceiver(dragDropReceiver, isTargeted: $isDropTargeted)
         .alert(
             "Error",
             isPresented: .init(
