@@ -61,6 +61,10 @@ struct ProjectCardView: View {
         .task(id: project.thumbnailPath) {
             await loadThumbnail()
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(project.name), \(project.formattedDuration)")
+        .accessibilityHint("Double-tap to open.")
+        .accessibilityIdentifier(AccessibilityIdentifiers.Library.projectCard(project.id))
     }
 
     // MARK: - Async Thumbnail Loading
