@@ -227,6 +227,8 @@ On Success: bottom sheet (medium detent) with thumbnail + share link + Save-to-P
 
 Multiple exports allowed. While one runs, tapping Export on another queues it; a floating glass pill (“2 exporting”) lives in the Library and opens a queue sheet. Per-item cancel.
 
+**Export source:** always the original media. Proxies (§10.9) are for playback only and are never used as an export source. If an original is missing, export surfaces a blocking error and routes through the media-relink flow (§3.4 / F6-16) before retry.
+
 ---
 
 ## 6. Editor Tab Drill-Downs
@@ -484,6 +486,7 @@ Template: hero illustration + title + subtitle + optional primary CTA + escape-h
   - Post-capture: thumbnail + **Use** (amber) / **Retake** / **Save + continue**.
 - Files / URL → native picker → import progress toast.
 - **Global import progress:** bottom-pinned floating glass pill “Importing 3 • 72%”; tap expands a per-item sheet with cancel.
+- **Proxy generation (§10.9)** kicks off automatically for eligible imports. Progress is shown as a secondary line on the import pill and as a thin bar along the clip tile until each proxy is ready.
 
 ### 9.8 Undo History Scrubber
 
@@ -658,6 +661,87 @@ Exposed via `UIKeyCommand` in `KeyboardShortcutProvider`; discoverable via Hold-
 - Fallback during cache miss: tertiary placeholder.
 - Accessibility: `.accessibilityHidden(true)` on the image; clip title/duration remain readable.
 
+### 10.9 Proxy Rendering Pipeline
+
+Proxy rendering generates a low-resolution stand-in copy of each eligible source media on import. The editor plays back from the proxy for smooth scrubbing while the original is used at export. Optional and user-configurable; defaults aim at "just works" for 4K source on A15+ devices.
+
+#### 10.9.1 Policy & defaults
+
+| Setting | Default | User-overridable |
+|---|---|---|
+| Use Proxies (global) | On | Yes — App Settings › Proxies |
+| Auto-generate threshold | Source > 1080p | Yes (Off / ≥1080p / ≥4K / Always) |
+| Proxy resolution | 720p short-side, preserving aspect | No (baked v1) |
+| Proxy codec / bitrate | H.264 `.avcMain`, 5 Mbps, same frame-rate, audio pass-through | No (baked v1) |
+| Disk-quota cap | 5 GB | Yes (1 / 5 / 20 GB / Unlimited) |
+| Eviction | LRU under cap + system low-storage | n/a |
+
+Sources at or below 1080p skip proxy generation regardless of the toggle — no runtime benefit.
+
+#### 10.9.2 Data model
+
+`MediaAsset` gains four fields:
+
+- `proxyURL: URL?` — file URL in the proxy cache directory if ready.
+- `proxyStatus: ProxyStatus` — `.none | .pending | .generating(Double) | .ready | .failed(Error)`.
+- `proxyGeneratedAt: Date?`
+- `useProxyOverride: ProxyOverride?` — `.followProjectDefault | .alwaysOriginal | .alwaysProxy | .regenerate`.
+
+All fields are `Codable` and persisted with the project file (proxy files themselves live in `~/Library/Caches/LiquidEditor/Proxies/` and may be re-generated after a cache purge).
+
+#### 10.9.3 Generation pipeline
+
+1. On import (§9.1 / §9.7), `ProxyService` evaluates each new `MediaAsset` against the auto-generate threshold.
+2. If eligible, `ProxyService` enqueues a `ProxyGenerator` task (actor).
+3. `ProxyGenerator` runs `AVAssetExportSession` with 720p preset + H.264 5 Mbps + matching frame-rate + audio pass-through; emits progress `[0…1]` via `AsyncStream`.
+4. On completion the proxy is saved to the cache directory and `MediaAsset.proxyStatus = .ready`.
+5. On failure: log, fall back to original, surface a non-blocking toast *"Proxy unavailable for clip — using original."* Failed assets do not re-attempt automatically.
+
+#### 10.9.4 Playback routing
+
+`PlaybackEngine` resolves an asset to a playback URL via:
+
+```
+if globalToggle == .off || override == .alwaysOriginal || proxyStatus != .ready {
+    return originalURL
+} else {
+    return proxyURL!
+}
+```
+
+Swap is atomic at seek boundaries — never mid-frame. The playback engine exposes a `usingProxy: Bool` on its current-state stream for the UI (§10.9.6).
+
+#### 10.9.5 Export routing
+
+**Export always uses originals.** `ExportEngine` explicitly ignores `proxyURL` and reads `originalURL`. If the original is missing (cloud-only placeholder, user-deleted, moved), the export surfaces a blocking error and drops into the media-relink flow (§3.4 / F6-16).
+
+#### 10.9.6 UI surfaces
+
+- **App Settings › Proxies** (subsection of §9.14 App Settings): master toggle, threshold picker (Off / ≥1080p / ≥4K / Always), cap selector (1 / 5 / 20 GB / Unlimited), live disk-usage readout, **Clear all proxies** destructive action.
+- **Clip tile indicator**: small tertiary-text **PXY** chip in bottom-left of the clip tile when playback is currently resolving to a proxy. Invisible during export.
+- **Inspector row** (iPad, video-clip selected): **Use proxy** — segmented (Follow project / Always on / Always off / Regenerate).
+- **Import pill** (F6-8 extension): secondary line during proxy generation, e.g., *"Generating 2 proxies · 62%"*.
+- **Per-clip proxy progress**: thin amber bar along the clip tile bottom while its proxy is generating; lock icon while busy.
+- **Storage warning**: when disk cap hits 80%, a non-blocking toast with **Manage…** action opens App Settings › Proxies.
+
+#### 10.9.7 Storage management
+
+- Cap enforces LRU eviction (oldest-accessed proxies go first).
+- System low-storage notification triggers aggressive eviction (drop usage to 50% of cap).
+- **Clear all proxies** is destructive and confirmed (§9.10). After clearing, next playback uses originals until proxies regenerate lazily on demand.
+
+#### 10.9.8 Performance targets
+
+- Proxy generation runs on a **low-QoS** queue; must not block main and must not degrade the 60 FPS / <2ms cached-scrub budget.
+- Scrubbing with proxy active: **<2ms cached / <20ms uncached** (tighter than originals — decode is cheaper).
+- The UI never blocks waiting on a proxy. If a proxy isn't ready when playback starts, the original is used and the UI swaps silently once the proxy arrives at the next seek boundary.
+
+#### 10.9.9 Accessibility
+
+- **PXY** chip: `.accessibilityLabel("Playing with proxy")` + `.accessibilityHint("Export will use full-resolution original")`.
+- Proxy-generation progress announced via VoiceOver at 10% intervals only (not every frame).
+- Clear-all-proxies action has a confirmation dialog (per §9.10) with an explicit "this will not affect your videos" reassurance line.
+
 ---
 
 ## 11. Implementation Notes
@@ -679,6 +763,7 @@ Exposed via `UIKeyCommand` in `KeyboardShortcutProvider`; discoverable via Hold-
 - **Deep tools:** `SpeedRampSheet`, `KeyframeLane`, `TrimPrecisionView`, `TrackingOverlay`, `MaskEditorView`, `BeatDetectControls`, `StabilizePanel`, `ChromaKeyView`, `AutoMixControls`.
 - **Creative panels:** `TextEditorSheet`, `TransitionPickerSheet`, `FXBrowserSheet`, `LUTPickerSheet`, `ColorWheelsPanel` (`ColorWheelControl` primitive), `CurvesEditor`, `HSLPanel`, `ScopesPanel`.
 - **Supporting:** `MediaPickerSheet`, `VoiceOverModal`, `AutoCaptionsReviewView`, `ProjectSettingsSheet`, `EmptyStateView`, `OnboardingSheet`, `PermissionPrimerSheet`, `CameraCaptureView`, `UndoHistoryScrubber`.
+- **Proxy pipeline (§10.9):** `ProxyService` (orchestrator), `ProxyGenerator` (actor running `AVAssetExportSession`), `ProxyStorageManager` (disk quota + LRU eviction), `ProxyStatusView` (clip-tile PXY chip + progress bar).
 - **Timeline internals:** `AudioWaveformView`, `BeatMarkerLayer`, `ChapterMarkerLayer`, `RippleEditController`.
 
 ### 11.4 View models

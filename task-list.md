@@ -19,10 +19,11 @@
 ## 1. Summary & Critical Path
 
 - **Epics:** 17 (Epic 0 Decisions → Epic 16 iPad Platform Extras).
-- **Tasks:** 208 total.
-- **Total estimated effort:** ~260 engineer-days.
+- **Tasks:** 218 total.
+- **Total estimated effort:** ~275 engineer-days.
 - **Revision 2 (2026-04-18):** 142 → 174 (added domain models + iPad extras + export presets/destinations + creative engines + library CRUD + timeline extras + platform foundation).
 - **Revision 3 (2026-04-18):** 174 → 208 after paragraph-by-paragraph spec audit. Added: Editor chrome buttons (project chip dropdown, app Settings, avatar menu, You tab, Drafts, New Project flow), preview gestures (pinch/pan/double-tap/overlays), compute engines behind specced UI (chroma key compute, curves/HSL pipelines, stabilization algorithms, dialog detection, speed-bake, .cube parser), per-clip data models for tracking + mask, timeline execution logic (Slip/Roll/Slide, multi-clip batch ops, track reordering, add/remove track, clip clipboard, Properties view), library search + URL import, content tasks (LUT library + font management), polish (effect-stack reorder, caption export SRT/VTT, export cancel cleanup, global snap settings, custom color picker).
+- **Revision 4 (2026-04-18):** 208 → 218 after adding Proxy Rendering Pipeline (spec §10.9): `ProxyService` orchestrator, `ProxyGenerator` actor, storage manager with LRU, playback routing (proxy for preview, original for export), UI surfaces (PXY clip chip, App Settings Proxies section, Inspector per-clip override, import pill secondary line), and testing.
 - **With 4 parallel streams:** critical path is **~7 weeks** (35 working days).
 - **With 2 parallel streams:** ~10–12 weeks.
 
@@ -108,6 +109,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F0-7 | Localization pipeline: `Localizable.xcstrings` + helper `L("…")`; all user-facing strings use `String(localized:)` | M | — | global | A | ○ |
 | F0-8 | Launch screen + status-bar appearance (dark canvas, amber accent mark) | S | F0-5 | global | A | ○ |
 | F0-9 | App-level **Settings screen** (distinct from Project Settings): default export preset, haptics master toggle, analytics opt-in, show-welcome-tour, about/licenses/credits, diagnostics | M | F0-2 | §9.12, §10.6 | A | ○ |
+| F0-10 | **Proxy defaults config**: feature flag + baked defaults (threshold > 1080p, 720p H.264 5 Mbps, 5 GB cap) wired into `ServiceContainer` | S | — | §10.9.1 | A | ○ |
 
 ### Epic 1 — Shared Primitives
 
@@ -158,6 +160,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | S2-21 | **“You” tab** (iPhone bottom): profile header + links to App Settings (F0-9) + About + subscription status + sign-in (if any) | M | S2-5, F0-9 | §4.1 | C | ○ |
 | S2-22 | **Avatar menu** in Library header (iPhone + iPad): quick access to App Settings, sign out, about | S | S2-5, S2-6, F0-9 | §4.1, §4.2 | C | ○ |
 | S2-23 | Export cancel-mid-render cleanup: stop `AVAssetExportSession`, delete partial output, reset queue entry, clear error log | S | S2-10 | §5.4 | C | ○ |
+| S2-24 | **App Settings › Proxies** section: master toggle, threshold picker (Off/≥1080p/≥4K/Always), cap selector (1/5/20 GB/Unlimited), live disk-usage readout, destructive **Clear all proxies** | M | F0-9, PP12-8, PP12-11 | §10.9.6 | A | ○ |
 
 ### Epic 3 — Editor Tab Wiring
 
@@ -236,6 +239,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F6-17 | **URL import flow**: paste-link sheet in Import tiles → validate URL → download with progress toast (via F6-8) → emit clip | M | F6-8 | §9.7 | E | ○ |
 | F6-18 | **Library search implementation**: name match + date filter + tag-filter; debounced; empty/no-results states from P1-8 | M | S2-5, S2-6, P1-7 | §4.1 | C | ○ |
 | F6-19 | **Caption export** as SRT + VTT sidecar: when captions exist, Export destination also writes `.srt` + `.vtt` next to the video | M | F6-3, S2-13 | §9.3 | E | ○ |
+| F6-20 | **Proxy generation progress UI**: secondary line on the F6-8 import pill (“Generating 2 proxies · 62%”) + thin amber bar on each clip tile while its proxy generates + non-blocking fallback toast on failure | M | F6-8, PP12-8, PP12-9 | §10.9.3, §10.9.6 | E | ○ |
 
 ### Epic 7 — Timeline Core Enhancements
 
@@ -303,6 +307,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | IM9-12 | Section: Playhead timecode + snap | S | IM9-1 | §10.2 | D | ○ |
 | IM9-13 | Multi-select handling: show “Mixed” em-dash for inconsistent values | M | IM9-1 | §10.2 | D | ○ |
 | IM9-14 | Section: **Clip Properties** (read-only metadata — codec / resolution / fps / color space / duration / path); replaces action sheet when accessed via inspector rather than context menu | S | IM9-1, T7-19 | §10.2, §6.1 | D | ○ |
+| IM9-15 | Section: **Proxy controls** (video clip selected): `Use proxy` segmented — Follow project / Always on / Always off / Regenerate; status line (`ready` / `generating` / `failed`) | S | IM9-1, PP12-8 | §10.9.6 | D | ○ |
 
 ### Epic 10 — Accessibility Pass
 
@@ -343,6 +348,11 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | PP12-5 | `CADisplayLink` for export ring animation (not SwiftUI `.animation`) | S | S2-10 | §10.7 | C | ○ |
 | PP12-6 | Scopes throttling (30 Hz → 15 Hz on thermal pressure) | S | C5-9 | §10.7 | D | ○ |
 | PP12-7 | Verify scrub budget <2ms cached / <50ms uncached + composition rebuild <20ms with Instruments | M | PP12-4 | §10.7 | A | ○ |
+| PP12-8 | **`ProxyService`**: orchestrator — threshold evaluation on import, generation queue, proxy-cache registry, status-stream publication for UI | L | F0-10, M15-6 | §10.9.3, §10.9.4 | A | ○ |
+| PP12-9 | **`ProxyGenerator`** actor: `AVAssetExportSession` 720p H.264 5 Mbps + frame-rate match + audio pass-through; `AsyncStream<Double>` progress; low-QoS dispatch | M | F0-10 | §10.9.3, §10.9.8 | A | ○ |
+| PP12-10 | **Playback-engine proxy routing**: `PlaybackEngine` picks `proxyURL` vs. `originalURL` per policy; swap is atomic at seek boundaries; publishes `usingProxy` to UI | M | PP12-8 | §10.9.4 | A | ○ |
+| PP12-11 | **`ProxyStorageManager`**: disk-quota enforcement + LRU eviction + system low-storage handler (drop to 50% cap); reports live disk-usage | M | PP12-8 | §10.9.7 | A | ○ |
+| PP12-12 | **Clip-tile PXY chip** + per-clip proxy-progress bar (tertiary chip bottom-left when `usingProxy`; amber bar while generating) | S | PP12-10, F6-20 | §10.9.6 | B | ○ |
 
 ### Epic 13 — Testing
 
@@ -356,6 +366,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | TT13-6 | Accessibility audit in CI (XCTest Accessibility Audit per screen) | M | A10-1, A10-7 | §10.6, §11.6 | E | ○ |
 | TT13-7 | Inspector matrix tests: every selection type × every section shown/hidden correctly | M | IM9-1..13 | §10.2 | E | ○ |
 | TT13-8 | Keyboard shortcut coverage tests | S | K11-1..6 | §10.5 | E | ○ |
+| TT13-9 | **Proxy tests**: generation succeeds → playback uses proxy, export always uses original, cache LRU eviction, failed-proxy falls back to original, policy overrides honored | M | PP12-8, PP12-9, PP12-10, PP12-11 | §10.9 | E | ○ |
 
 ### Epic 14 — Integration & Polish
 
@@ -377,6 +388,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | M15-3 | Keyframe persistence: property-keyed map `[KeyframeProperty: [Keyframe]]` on clip; linear/held/cubic-bezier interpolation | M | — | §7.2, §10.2 | B | ○ |
 | M15-4 | Text-clip model expansion: add stroke (color+width), shadow (offset+blur+α), background (fill/bubble/blur), animation (in+out+loop refs) fields | S | — | §8.1 | D | ○ |
 | M15-5 | Per-project UI state: `ProjectUIState` codable blob (tool-rail config, last zoom bucket, last-selected tool, scope dock state, tab index) | M | — | §10.4 | A | ○ |
+| M15-6 | **`MediaAsset` proxy fields**: add `proxyURL: URL?`, `proxyStatus`, `proxyGeneratedAt`, `useProxyOverride`; `Codable` migration for existing project files | S | — | §10.9.2 | A | ○ |
 
 ### Epic 16 — iPad Platform Extras
 
@@ -407,6 +419,8 @@ All of these can start **simultaneously on day 1**:
 13. **C5-20** (LUT content) — content pipeline; decoupled, content team or outsourced.
 14. **E4-10, E4-11** (tracking + mask data models) — stream B. Decoupled.
 15. **F0-9** (App Settings screen) — stream A. Decoupled once F0-2 lands.
+16. **F0-10** (Proxy defaults config), **M15-6** (MediaAsset proxy fields) — stream A. Decoupled; feed PP12-8 chain.
+17. **PP12-9** (`ProxyGenerator` actor) — stream A. Can land on top of F0-10; fully decoupled from UI.
 
 After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-17) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
 
@@ -431,25 +445,25 @@ Resolve these decisions ASAP; every day of delay slides the schedule by the same
 
 Update the per-task `Status` column (`○ → ◔ → ●`) as work progresses. Quick counters to track manually:
 
-- Epic 0: 0 / 15 done
+- Epic 0: 0 / 16 done
 - Epic 1: 0 / 17 done
-- Epic 2: 0 / 23 done
+- Epic 2: 0 / 24 done
 - Epic 3: 0 / 6 done
 - Epic 4: 0 / 12 done
 - Epic 5: 0 / 21 done
-- Epic 6: 0 / 19 done
+- Epic 6: 0 / 20 done
 - Epic 7: 0 / 23 done
 - Epic 8: 0 / 15 done
-- Epic 9: 0 / 14 done
+- Epic 9: 0 / 15 done
 - Epic 10: 0 / 12 done
 - Epic 11: 0 / 6 done
-- Epic 12: 0 / 7 done
-- Epic 13: 0 / 8 done
+- Epic 12: 0 / 12 done
+- Epic 13: 0 / 9 done
 - Epic 14: 0 / 6 done
-- Epic 15: 0 / 5 done
+- Epic 15: 0 / 6 done
 - Epic 16: 0 / 3 done
 
-**Total: 0 / 208 tasks done**
+**Total: 0 / 218 tasks done**
 
 ---
 
