@@ -50,6 +50,11 @@ struct ClipView: View {
     // MARK: - Callbacks
 
     var onTap: (() -> Void)?
+    /// T7-1: Double-tap callback — Trim Precision entry point.
+    var onDoubleTapped: (() -> Void)?
+    /// T7-1: Long-press state change callback — parent uses `true`/`false`
+    /// to dim the surrounding timeline while a long-press is active.
+    var onLongPressChanged: ((Bool) -> Void)?
     var onDragChanged: ((CGFloat) -> Void)?
     var onDragEnded: (() -> Void)?
     var onTrimStartChanged: ((CGFloat) -> Void)?
@@ -106,6 +111,8 @@ struct ClipView: View {
         waveformSamples: [Float]? = nil,
         thumbnailCache: ThumbnailCache? = nil,
         onTap: (() -> Void)? = nil,
+        onDoubleTapped: (() -> Void)? = nil,
+        onLongPressChanged: ((Bool) -> Void)? = nil,
         onDragChanged: ((CGFloat) -> Void)? = nil,
         onDragEnded: (() -> Void)? = nil,
         onTrimStartChanged: ((CGFloat) -> Void)? = nil,
@@ -126,6 +133,8 @@ struct ClipView: View {
         self.waveformSamples = waveformSamples
         self.thumbnailCache = thumbnailCache
         self.onTap = onTap
+        self.onDoubleTapped = onDoubleTapped
+        self.onLongPressChanged = onLongPressChanged
         self.onDragChanged = onDragChanged
         self.onDragEnded = onDragEnded
         self.onTrimStartChanged = onTrimStartChanged
@@ -214,9 +223,28 @@ struct ClipView: View {
         )
         .animation(.easeInOut(duration: 0.15), value: isSelected)
         .animation(.easeInOut(duration: 0.15), value: isDragging)
-        .onTapGesture {
+        // T7-1: double-tap first (Trim Precision entry point); single-tap
+        // falls through to selection + HapticService.trigger(.timelineScrub).
+        .onTapGesture(count: 2) {
+            onDoubleTapped?()
+        }
+        .onTapGesture(count: 1) {
+            HapticService.shared.trigger(.timelineScrub)
             onTap?()
         }
+        .onLongPressGesture(
+            minimumDuration: 0.45,
+            maximumDistance: 10,
+            perform: {
+                HapticService.shared.trigger(.selection)
+                onLongPressChanged?(true)
+            },
+            onPressingChanged: { isPressing in
+                if !isPressing {
+                    onLongPressChanged?(false)
+                }
+            }
+        )
         .gesture(clipDragGesture)
         .task(id: item.id) {
             await loadThumbnailsIfNeeded()
@@ -225,6 +253,11 @@ struct ClipView: View {
         .accessibilityLabel("Clip: \(item.displayName)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint(isSelected ? "Double-tap and hold to drag. Use context menu for more options." : "Tap to select")
+        // T7-1: context menu is attached by the PARENT via the
+        // `.clipGestures(...)` modifier (ClipGestureModifier.swift) so
+        // every call site sees the same sectioned menu with Split /
+        // Duplicate / Speed / Volume / Delete. Kept here as a fallback
+        // ONLY if no callsite attaches `.clipGestures`.
         .contextMenu {
             Button {
                 onSplit?()

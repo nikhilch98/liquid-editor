@@ -32,6 +32,10 @@ struct TimelineView: View {
     @State private var containerSize: CGSize = .zero
     @State private var isReorderMode: Bool = false
 
+    /// T7-1: true while a clip long-press is active. Drives a 60%
+    /// dim overlay on the surrounding UI.
+    @State private var isClipLongPressActive: Bool = false
+
     // MARK: - Constants
 
     private let rulerHeight: CGFloat = 30
@@ -143,7 +147,17 @@ struct TimelineView: View {
                 if isReorderMode {
                     reorderOverlay(size: size)
                 }
+
+                // T7-1: 60% dim while a clip long-press is active, so the
+                // GlassContextMenu pops against a muted backdrop.
+                if isClipLongPressActive {
+                    Color.black.opacity(0.6)
+                        .frame(width: size.width, height: size.height)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.18), value: isClipLongPressActive)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Video timeline editor")
             .onAppear {
@@ -210,47 +224,32 @@ struct TimelineView: View {
         }
     }
 
-    /// Individual track header with name, mute button, and lock button.
+    /// Individual track header — delegates to `TrackHeaderView` so the
+    /// long-press GlassContextMenu (T7-11) is attached uniformly.
+    ///
+    /// `onRename` / `onMuteAll` / `onDelete` are no-ops for now; the
+    /// menu items show but their callbacks are future work (T7-31, etc.).
     @ViewBuilder
     private func trackHeaderItem(track: Track) -> some View {
-        VStack(alignment: .leading, spacing: LiquidSpacing.xxs) {
-            // Track name.
-            Text(track.name)
-                .font(.system(size: Self.trackHeaderNameFontSize, weight: .medium))
-                .foregroundStyle(.white.opacity(Self.trackHeaderNameOpacity))
-                .lineLimit(1)
+        TrackHeaderView(
+            track: track,
+            onToggleMute: { toggleTrackMute(trackId: track.id) },
+            onToggleLock: { toggleTrackLock(trackId: track.id) },
+            onRename: { /* TODO (T7-31): rename sheet */ },
+            onMuteAll: { toggleAllTracksMute() },
+            onDelete: { /* TODO (T7-32): delete track with confirmation */ }
+        )
+    }
 
-            // Track controls.
-            HStack(spacing: Self.trackHeaderControlSpacing) {
-                // Mute button.
-                Button {
-                    UISelectionFeedbackGenerator().selectionChanged()
-                    toggleTrackMute(trackId: track.id)
-                } label: {
-                    Image(systemName: track.isMuted ? "speaker.slash.fill" : "speaker.2.fill")
-                        .font(.system(size: Self.trackHeaderIconFontSize))
-                        .foregroundStyle(track.isMuted ? Color.red : .white.opacity(Self.trackHeaderIconOpacity))
-                }
-                .buttonStyle(.plain)
-                .frame(minWidth: Self.trackHeaderButtonMinSize, minHeight: Self.trackHeaderButtonMinSize)
-                .accessibilityLabel(track.isMuted ? "Unmute track \(track.name)" : "Mute track \(track.name)")
-
-                // Lock button.
-                Button {
-                    UISelectionFeedbackGenerator().selectionChanged()
-                    toggleTrackLock(trackId: track.id)
-                } label: {
-                    Image(systemName: track.isLocked ? "lock.fill" : "lock.open")
-                        .font(.system(size: Self.trackHeaderIconFontSize))
-                        .foregroundStyle(track.isLocked ? Color.orange : .white.opacity(Self.trackHeaderIconOpacity))
-                }
-                .buttonStyle(.plain)
-                .frame(minWidth: Self.trackHeaderButtonMinSize, minHeight: Self.trackHeaderButtonMinSize)
-                .accessibilityLabel(track.isLocked ? "Unlock track \(track.name)" : "Lock track \(track.name)")
+    /// T7-11 support: mute every track. If ANY track is unmuted, mute
+    /// all; otherwise unmute all.
+    private func toggleAllTracksMute() {
+        let hasUnmuted = viewModel.tracks.contains { !$0.isMuted }
+        for i in viewModel.tracks.indices {
+            if viewModel.tracks[i].isMuted != hasUnmuted {
+                viewModel.tracks[i] = viewModel.tracks[i].toggleMute()
             }
         }
-        .padding(.horizontal, Self.trackHeaderHorizontalPadding)
-        .padding(.vertical, Self.trackHeaderVerticalPadding)
     }
 
     // MARK: - Time Ruler
@@ -413,6 +412,13 @@ struct TimelineView: View {
                             onTap: {
                                 viewModel.selectClip(id: item.id)
                             },
+                            onDoubleTapped: {
+                                // T7-1: Trim Precision entry point.
+                                viewModel.selectClip(id: item.id)
+                            },
+                            onLongPressChanged: { active in
+                                isClipLongPressActive = active
+                            },
                             onDragChanged: { delta in
                                 handleClipDrag(id: item.id, delta: delta)
                             },
@@ -481,6 +487,13 @@ struct TimelineView: View {
                             isDragging: viewModel.isDragging && isSelected,
                             onTap: {
                                 viewModel.selectClip(id: item.id)
+                            },
+                            onDoubleTapped: {
+                                // T7-1: Trim Precision entry point.
+                                viewModel.selectClip(id: item.id)
+                            },
+                            onLongPressChanged: { active in
+                                isClipLongPressActive = active
                             },
                             onDragChanged: { delta in
                                 handleClipDrag(id: item.id, delta: delta)

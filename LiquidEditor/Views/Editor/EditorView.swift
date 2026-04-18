@@ -492,7 +492,11 @@ struct EditorView: View {
             } else {
                 TimelineView(
                     viewModel: timelineViewModel,
-                    playbackViewModel: playbackViewModel
+                    playbackViewModel: playbackViewModel,
+                    // T7-35: enable auto-follow playhead by default. When
+                    // ProjectUIState plumbing reaches EditorView, switch to
+                    // `autoFollowPlayhead: projectUIState.autoFollowPlayhead`.
+                    autoFollowPlayhead: true
                 )
             }
         }
