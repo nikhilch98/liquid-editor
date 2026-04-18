@@ -138,4 +138,39 @@ enum LiquidColors {
 
     /// Playhead indicator color.
     static let timelinePlayhead = Color(.systemRed)
+
+    // MARK: - Premium UI scopes (2026-04-18 redesign)
+
+    /// Canvas layers used by the editor shell and sheets.
+    /// See docs/superpowers/specs/2026-04-18-liquideditor-premium-ui-design.md.
+    enum Canvas {
+        /// Deepest layer — app background behind chrome. #07070A.
+        static let base = Color(red: 7 / 255, green: 7 / 255, blue: 10 / 255)
+        /// Preview + timeline background. #0F0F12.
+        static let raised = Color(red: 15 / 255, green: 15 / 255, blue: 18 / 255)
+    }
+
+    /// Text colors tuned for the Edits-style bone-white on near-black palette.
+    enum Text {
+        /// Primary labels / titles. #F3EEE6.
+        static let primary = Color(red: 243 / 255, green: 238 / 255, blue: 230 / 255)
+        /// Captions / inactive tabs. #9C9A93.
+        static let secondary = Color(red: 156 / 255, green: 154 / 255, blue: 147 / 255)
+        /// Disabled / hints. #5A5852.
+        static let tertiary = Color(red: 90 / 255, green: 88 / 255, blue: 82 / 255)
+        /// Text on amber surfaces. #07070A.
+        static let onAccent = Color(red: 7 / 255, green: 7 / 255, blue: 10 / 255)
+    }
+
+    /// Single active-state accent plus its glow and a destructive-action color.
+    enum Accent {
+        /// Mustard-amber active accent. #E6B340.
+        static let amber = Color(red: 230 / 255, green: 179 / 255, blue: 64 / 255)
+        /// Amber glow @ 37% alpha — used for halos behind selected clips.
+        static let amberGlow = Color(
+            red: 230 / 255, green: 179 / 255, blue: 64 / 255
+        ).opacity(0.37)
+        /// Destructive confirmation color. #E5534A.
+        static let destructive = Color(red: 229 / 255, green: 83 / 255, blue: 74 / 255)
+    }
 }
