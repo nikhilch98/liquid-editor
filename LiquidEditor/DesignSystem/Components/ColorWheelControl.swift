@@ -52,7 +52,7 @@ struct ColorWheelControl: View {
                 .foregroundStyle(LiquidColors.Text.primary)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title) wheel, hue \(Int(value.hue * 360))\u00B0, saturation \(Int(value.saturation * 100))%, luma \(String(format: "%+.2f", value.luma))")
+        .accessibilityLabel("\(title) wheel, hue \(Int(value.hue * 360))\u{00B0}, saturation \(Int(value.saturation * 100))%, luma \(String(format: "%+.2f", value.luma))")
     }
 
     // MARK: - Subviews
