@@ -19,9 +19,10 @@
 ## 1. Summary & Critical Path
 
 - **Epics:** 17 (Epic 0 Decisions → Epic 16 iPad Platform Extras).
-- **Tasks:** 174 total.
-- **Total estimated effort:** ~220 engineer-days.
-- **Revision 2 (2026-04-18):** expanded from 142 to 174 after cross-referencing every spec section — added Domain Models epic, iPad Platform Extras epic, export preset/destination/estimator tasks, creative engine tasks (transition shaders, FX shaders, scope compute), Library CRUD tasks (rename/duplicate/share/collections/starred/trash), timeline extras (track mute/lock/header/fullscreen), and platform foundation (motion audit, color scheme, orientation, localization, launch screen).
+- **Tasks:** 208 total.
+- **Total estimated effort:** ~260 engineer-days.
+- **Revision 2 (2026-04-18):** 142 → 174 (added domain models + iPad extras + export presets/destinations + creative engines + library CRUD + timeline extras + platform foundation).
+- **Revision 3 (2026-04-18):** 174 → 208 after paragraph-by-paragraph spec audit. Added: Editor chrome buttons (project chip dropdown, app Settings, avatar menu, You tab, Drafts, New Project flow), preview gestures (pinch/pan/double-tap/overlays), compute engines behind specced UI (chroma key compute, curves/HSL pipelines, stabilization algorithms, dialog detection, speed-bake, .cube parser), per-clip data models for tracking + mask, timeline execution logic (Slip/Roll/Slide, multi-clip batch ops, track reordering, add/remove track, clip clipboard, Properties view), library search + URL import, content tasks (LUT library + font management), polish (effect-stack reorder, caption export SRT/VTT, export cancel cleanup, global snap settings, custom color picker).
 - **With 4 parallel streams:** critical path is **~7 weeks** (35 working days).
 - **With 2 parallel streams:** ~10–12 weeks.
 
@@ -106,6 +107,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F0-6 | Per-screen orientation-lock infrastructure: `UIViewController`-host wrapper + SwiftUI modifier; Editor allows landscape, Library/Export portrait-only | M | — | §2.7 | A | ○ |
 | F0-7 | Localization pipeline: `Localizable.xcstrings` + helper `L("…")`; all user-facing strings use `String(localized:)` | M | — | global | A | ○ |
 | F0-8 | Launch screen + status-bar appearance (dark canvas, amber accent mark) | S | F0-5 | global | A | ○ |
+| F0-9 | App-level **Settings screen** (distinct from Project Settings): default export preset, haptics master toggle, analytics opt-in, show-welcome-tour, about/licenses/credits, diagnostics | M | F0-2 | §9.12, §10.6 | A | ○ |
 
 ### Epic 1 — Shared Primitives
 
@@ -127,6 +129,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | P1-14 | Standardize `ConfirmationDialog` pattern (title / destructive action / cancel / iPad-anchor / iPhone-sheet) | S | F0-1 | §9.10 | A | ○ |
 | P1-15 | `PermissionPrimerSheet` generic template (hero + rationale + grant + “not now”) | S | F0-1 | §9.13 | A | ○ |
 | P1-16 | `SnapshotService`: capture thumbnail + diff-label at every committed edit; backing store for §9.8 history scrubber | L | D0-4 | §9.8 | A | ○ |
+| P1-17 | **Custom color picker** (HSB + hex + eyedropper on preview + saved-colors row); used by Text §8.1, color swatches, chroma fill-behind | M | F0-1 | §8.1.2, §7.9 | A | ○ |
 
 ### Epic 2 — Screen Skeletons
 
@@ -149,6 +152,12 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | S2-15 | Export error log + “Copy log” action (pasteboard) | S | S2-10 | §5.4 | C | ○ |
 | S2-16 | Background export: `BGProcessingTaskRequest` + `UNUserNotificationCenter` for completion toast when backgrounded | L | S2-10 | §5.5 | C | ○ |
 | S2-17 | Library template system: seeded `Template` model + Templates tab feed + “New from template” flow | L | S2-5, S2-6 | §4.1, §4.2 | C | ○ |
+| S2-18 | **New-Project creation flow**: FAB / “+ New Project” → aspect-ratio picker (9:16, 16:9, 1:1, 4:5, custom) + resolution + frame-rate + optional template → initial timeline | M | S2-5, S2-6, M15-5 | §4.1, §4.2 | C | ○ |
+| S2-19 | **Project chip dropdown** in editor chrome (name ▾): Properties / Rename / Switch project / Close editor | S | S2-1, F6-4, F6-10 | §3.1 | B | ○ |
+| S2-20 | **Drafts** concept: auto-save in-progress work every 30s; Drafts tab feed; commit-to-project action | M | S2-5, S2-6, P1-16 | §4.1, §4.2 | C | ○ |
+| S2-21 | **“You” tab** (iPhone bottom): profile header + links to App Settings (F0-9) + About + subscription status + sign-in (if any) | M | S2-5, F0-9 | §4.1 | C | ○ |
+| S2-22 | **Avatar menu** in Library header (iPhone + iPad): quick access to App Settings, sign out, about | S | S2-5, S2-6, F0-9 | §4.1, §4.2 | C | ○ |
+| S2-23 | Export cancel-mid-render cleanup: stop `AVAssetExportSession`, delete partial output, reset queue entry, clear error log | S | S2-10 | §5.4 | C | ○ |
 
 ### Epic 3 — Editor Tab Wiring
 
@@ -173,7 +182,10 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | E4-6 | **Beat Detect** analysis + marker placement + BPM readout + "Snap edits to beats" toggle | L | P1-12 | §7.6 | B | ○ |
 | E4-7 | **Auto-Mix** dialog-ducking + post-run toast + iPad advanced sliders | M | P1-6 | §7.7 | B | ○ |
 | E4-8 | **Stabilize Panel** (Analyze/Re-analyze + Strength + Method chips + Crop toggle + before/after preview) | L | P1-1 | §7.8 | B | ○ |
-| E4-9 | **Chroma Key View** (eyedropper + tolerance/softness/spill/edge + alpha/holdout/fill toggles + Refine→Mask) | L | E4-4, P1-1 | §7.9 | B | ○ |
+| E4-9 | **Chroma Key View** (eyedropper + tolerance/softness/spill/edge + alpha/holdout/fill toggles + Refine→Mask) | L | E4-4, P1-1, C5-14 | §7.9 | B | ○ |
+| E4-10 | **Motion-track data model** on clip: stored per-frame or sparse keyframes with smoothing + transform targets; `Codable`; drives applied tracking at render | M | — | §7.4 | B | ○ |
+| E4-11 | **Mask data model** on clip: shape type (rect/ellipse/rounded/star/freehand path), feather/opacity/expand, animate toggle, per-frame keyframes; `Codable` | M | M15-3 | §7.5 | B | ○ |
+| E4-12 | **Speed-curve bake renderer**: when ramp exceeds real-time decode, background-bake a baked clip with progress UI (reuses clip-render queue pattern) | L | E4-1 | §7.1, §3.4 | B | ○ |
 
 ### Epic 5 — Creative Panels
 
@@ -191,6 +203,15 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | C5-10 | **Transition shader/animation implementations** (Fade / Dissolve / Zoom / Slide-L / Slide-R / Flip / Spin / Glitch / Morph) — Metal shaders or `AVMutableVideoCompositionInstruction` | L | — | §8.2 | D | ○ |
 | C5-11 | **Individual FX implementations** (Glitch / Zoom-blur / Mirror / Prism / VHS / Bokeh / Shake / Neon / Chroma hue-shift) — Metal + CIFilter chains | XL | — | §8.3 | D | ○ |
 | C5-12 | **Scope compute engines**: luma-waveform, RGB histogram, vectorscope (I/Q polar), RGB parade; sampled via `ColorGradingPipeline` taps | L | F0-3 | §8.8, §10.7 | D | ○ |
+| C5-13 | **.cube LUT parser** + validator + error messaging (invalid dimension / out-of-range) — ships only if D0-2 = yes | M | D0-2 | §8.4 | D | ⧸ (pending D0-2) |
+| C5-14 | **Chroma key compute**: Metal shader or CIFilter chain implementing key/tolerance/softness/spill/edge-thin in one pass | L | — | §7.9 | B | ○ |
+| C5-15 | **Curves rendering pipeline**: extend `ColorGradingPipeline` to apply per-channel LUT derived from curve points (Luma/R/G/B) | M | — | §8.6 | D | ○ |
+| C5-16 | **HSL rendering pipeline**: extend `ColorGradingPipeline` with 8-channel HSL shift; per-pixel hue-range masking | M | — | §8.7 | D | ○ |
+| C5-17 | **Stabilization algorithms**: Cinema (VNTranslationalImageRegistrationRequest or Vision), Handheld (point-feature + smoothing), Fast (single-frame crop) | L | — | §7.8 | B | ○ |
+| C5-18 | **Dialog detection service** (for Auto-Mix §7.7): analyze audio to identify speech segments; feed into duck envelope generator | L | — | §7.7 | B | ○ |
+| C5-19 | **Effect-stack drag-to-reorder** inside FX Browser applied-stack list | S | C5-4, M15-1 | §8.3 | D | ○ |
+| C5-20 | **Bundled LUT content**: 10–20 royalty-free .cube LUTs shipping with the app, categorized (Cinematic/Film/Vintage/B&W) | M | C5-13 (optional) | §8.4 | D | ○ |
+| C5-21 | **Font management**: curated bundled fonts (SF Pro families + 4–6 display / serif / mono / rounded) + custom font import via `CTFontManagerRegisterFontsForURL` | M | F0-1 | §8.1 | D | ○ |
 
 ### Epic 6 — Supporting Flows
 
@@ -212,6 +233,9 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | F6-14 | Starred / favorite projects: star toggle on card context menu + sidebar filter | S | S2-7 | §4.2 | C | ○ |
 | F6-15 | Trash flow: 30-day soft-delete retention + Restore + Empty Trash (destructive + confirmation) | M | P1-14 | §4.2, §9.10 | C | ○ |
 | F6-16 | Media relink flow: detect missing assets on project open; Inspector row “Locate…” → file picker | M | S2-4 | §3.4 | C | ○ |
+| F6-17 | **URL import flow**: paste-link sheet in Import tiles → validate URL → download with progress toast (via F6-8) → emit clip | M | F6-8 | §9.7 | E | ○ |
+| F6-18 | **Library search implementation**: name match + date filter + tag-filter; debounced; empty/no-results states from P1-8 | M | S2-5, S2-6, P1-7 | §4.1 | C | ○ |
+| F6-19 | **Caption export** as SRT + VTT sidecar: when captions exist, Export destination also writes `.srt` + `.vtt` next to the video | M | F6-3, S2-13 | §9.3 | E | ○ |
 
 ### Epic 7 — Timeline Core Enhancements
 
@@ -230,6 +254,16 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | T7-11 | Track header long-press menu (Rename / Mute all / Lock / Delete track) | S | P1-5, T7-10 | §10.3 | B | ○ |
 | T7-12 | Fullscreen preview mode (F key / ⛶ button; pinch-zoom + pan + swipe-down dismiss) | M | S2-1 | §3.1, §10.5 | B | ○ |
 | T7-13 | Preserve existing Comparison mode toggle in both fullscreen + inline preview | S | T7-12 | existing feature | B | ○ |
+| T7-14 | **Clip clipboard**: copy/paste clip + inherited effect stack / grade / keyframes; cross-project paste supported | M | M15-1, M15-2, M15-3 | §6.1 | B | ○ |
+| T7-15 | **Multi-clip batch operations**: delete / duplicate / move / apply-effect / set-speed to selection from T7-5 lasso + shift-tap | M | T7-5 | §10.3 | B | ○ |
+| T7-16 | **Vertical track reordering**: drag track header up/down to reorder tracks | M | S2-1 | §10.3 | B | ○ |
+| T7-17 | **Add / remove track** action: insert new video / audio / text / caption track at chosen position; removing confirms if non-empty | M | S2-1, P1-14 | §10.3 | B | ○ |
+| T7-18 | **Slip / Roll / Slide** edit execution: timeline operations backing the pro-edit chips in Trim Precision (E4-3) | L | E4-3 | §7.3 | B | ○ |
+| T7-19 | **Clip Properties view** (from context menu “Properties”): metadata display (codec, resolution, fps, color space, duration, file path, bitrate) | S | S2-1 | §6.1 | B | ○ |
+| T7-20 | **Global snap settings panel** (gear in transport row): toggles for snap-to-playhead, snap-to-beat, snap-to-marker, snap-to-grid | S | S2-1 | §10.3 | B | ○ |
+| T7-21 | **Preview pinch-zoom (1×–5×) + pan-when-zoomed**: gesture handlers on preview surface; reset via double-tap | M | S2-1 | §3.1 | B | ○ |
+| T7-22 | **Preview double-tap zoom** toggle (zoom-fit ↔ zoom-fill) | S | T7-21 | §3.1 | B | ○ |
+| T7-23 | **Preview overlay toggles** (grid / safe-zone / center cross / action-safe); toggled from overflow in preview chrome; persisted per-project | S | S2-1, M15-5 | existing feature + §3.1 | B | ○ |
 
 ### Epic 8 — Small Tools (leaf controls, highly parallel)
 
@@ -268,6 +302,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | IM9-11 | Section: Project meta (no selection) | S | IM9-1 | §10.2 | D | ○ |
 | IM9-12 | Section: Playhead timecode + snap | S | IM9-1 | §10.2 | D | ○ |
 | IM9-13 | Multi-select handling: show “Mixed” em-dash for inconsistent values | M | IM9-1 | §10.2 | D | ○ |
+| IM9-14 | Section: **Clip Properties** (read-only metadata — codec / resolution / fps / color space / duration / path); replaces action sheet when accessed via inspector rather than context menu | S | IM9-1, T7-19 | §10.2, §6.1 | D | ○ |
 
 ### Epic 10 — Accessibility Pass
 
@@ -284,6 +319,7 @@ If only **2 engineers** are available, collapse A+D into one stream ("platform+c
 | A10-9 | Accessibility-actions menus for multi-finger gestures (pinch, trim) | M | T7-2, T7-4 | §10.6 | A | ○ |
 | A10-10 | Haptics master toggle in Settings → Accessibility | S | F0-2 | §2.4, §10.6 | A | ○ |
 | A10-11 | Apple Pencil support verification for Mask freehand + Curves + text handles | M | E4-4, C5-7, C5-1 | §10.6 | A | ○ |
+| A10-12 | **VoiceOver hints** (`accessibilityHint`) on complex controls: timeline clips ("double-tap to select, swipe up for actions"), transport buttons, gesture-heavy surfaces | M | A10-1 | §10.6 | A | ○ |
 
 ### Epic 11 — Keyboard Shortcuts (iPad)
 
@@ -367,8 +403,12 @@ All of these can start **simultaneously on day 1**:
 9. **M15-1, M15-2, M15-3** (domain models) — stream B. Fully decoupled from UI; parallelize.
 10. **M15-4, M15-5** (text model expansion, project UI state) — streams D / A.
 11. **C5-10** (transition shaders), **C5-11** (FX shaders) — stream D. Decoupled; XL items that should start earliest.
+12. **C5-14** (chroma compute), **C5-15/16** (curves + HSL pipelines), **C5-17** (stabilization), **C5-18** (dialog detection) — stream B/D. Decoupled compute work; start early so feature UIs can wire in.
+13. **C5-20** (LUT content) — content pipeline; decoupled, content team or outsourced.
+14. **E4-10, E4-11** (tracking + mask data models) — stream B. Decoupled.
+15. **F0-9** (App Settings screen) — stream A. Decoupled once F0-2 lands.
 
-After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-16) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
+After **F0-1 completes (~day 1)**, every Epic 1 primitive (P1-1 … P1-17) opens. After **F0-2 completes (~day 2)**, haptics-dependent items open.
 
 ---
 
@@ -391,17 +431,17 @@ Resolve these decisions ASAP; every day of delay slides the schedule by the same
 
 Update the per-task `Status` column (`○ → ◔ → ●`) as work progresses. Quick counters to track manually:
 
-- Epic 0: 0 / 14 done
-- Epic 1: 0 / 16 done
-- Epic 2: 0 / 17 done
+- Epic 0: 0 / 15 done
+- Epic 1: 0 / 17 done
+- Epic 2: 0 / 23 done
 - Epic 3: 0 / 6 done
-- Epic 4: 0 / 9 done
-- Epic 5: 0 / 12 done
-- Epic 6: 0 / 16 done
-- Epic 7: 0 / 13 done
+- Epic 4: 0 / 12 done
+- Epic 5: 0 / 21 done
+- Epic 6: 0 / 19 done
+- Epic 7: 0 / 23 done
 - Epic 8: 0 / 15 done
-- Epic 9: 0 / 13 done
-- Epic 10: 0 / 11 done
+- Epic 9: 0 / 14 done
+- Epic 10: 0 / 12 done
 - Epic 11: 0 / 6 done
 - Epic 12: 0 / 7 done
 - Epic 13: 0 / 8 done
@@ -409,7 +449,7 @@ Update the per-task `Status` column (`○ → ◔ → ●`) as work progresses. 
 - Epic 15: 0 / 5 done
 - Epic 16: 0 / 3 done
 
-**Total: 0 / 174 tasks done**
+**Total: 0 / 208 tasks done**
 
 ---
 
