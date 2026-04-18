@@ -138,8 +138,14 @@ final class EditorViewModel {
 
     // MARK: - UI State
 
-    /// Active bottom toolbar tab.
+    /// Active bottom toolbar tab (legacy 5-tab model).
     var activeTab: EditorTab = .edit
+
+    /// Active bottom toolbar tab (premium-redesign 5-tab model: edit/audio/text/fx/color).
+    ///
+    /// See `EditorTabID` in `Views/Editor/ToolStripContent.swift`.
+    /// When this changes, `currentTabTools` swaps the tool-strip buttons.
+    var selectedTab: EditorTabID = .edit
 
     /// Currently presented tool panel (sheet).
     var activePanel: ActiveToolPanel = .none
@@ -945,6 +951,173 @@ final class EditorViewModel {
                 skeletonJoints: nil
             )
         } ?? []
+    }
+
+    // MARK: - Tab Tool Strip (Premium Redesign §3/§4)
+
+    /// Returns the tool-strip buttons for the currently selected tab.
+    ///
+    /// Each tab exposes exactly 6 tools. The button `action` closures
+    /// dispatch to existing `EditorViewModel` methods or `setActivePanel`
+    /// targets where implementations already exist; missing deep-tool
+    /// panels are stubbed with `// TODO: T7-X` markers (see spec §6).
+    ///
+    /// Strategy:
+    ///   - Edit tab   → Split / Trim / Speed / Volume / Delete / Duplicate
+    ///   - Audio tab  → Volume / Fade / Mute / Extract / Effects / Mix
+    ///   - Text tab   → Add Text / Edit Text / Animate / Style / Delete / Caption
+    ///   - FX tab     → Filter / Transition / FX Browser / Color / LUT / Effects Stack
+    ///   - Color tab  → Wheels / Curves / HSL / LUT / Scopes / Reset
+    var currentTabTools: [ToolStripButton] {
+        switch selectedTab {
+        case .edit:  return editTabTools
+        case .audio: return audioTabTools
+        case .text:  return textTabTools
+        case .fx:    return fxTabTools
+        case .color: return colorTabTools
+        }
+    }
+
+    // MARK: Edit-tab tools (T3-2)
+
+    private var editTabTools: [ToolStripButton] {
+        [
+            ToolStripButton(id: "edit.split", icon: "scissors", label: "Split") { [weak self] in
+                self?.splitAtPlayhead()
+            },
+            ToolStripButton(id: "edit.trim", icon: "rectangle.split.2x1", label: "Trim") { [weak self] in
+                self?.toggleTrimMode()
+            },
+            ToolStripButton(id: "edit.speed", icon: "gauge.with.dots.needle.33percent", label: "Speed") { [weak self] in
+                self?.setActivePanel(.speed)
+            },
+            ToolStripButton(id: "edit.volume", icon: "speaker.wave.2", label: "Volume") { [weak self] in
+                self?.setActivePanel(.volume)
+            },
+            ToolStripButton(id: "edit.delete", icon: "trash", label: "Delete", isDestructive: true) { [weak self] in
+                self?.deleteSelected()
+            },
+            ToolStripButton(id: "edit.duplicate", icon: "doc.on.doc", label: "Duplicate") { [weak self] in
+                self?.duplicateSelected()
+            }
+        ]
+    }
+
+    // MARK: Audio-tab tools (T3-3)
+
+    private var audioTabTools: [ToolStripButton] {
+        [
+            ToolStripButton(id: "audio.volume", icon: "speaker.wave.2", label: "Volume") { [weak self] in
+                self?.setActivePanel(.volume)
+            },
+            ToolStripButton(id: "audio.fade", icon: "waveform.path.ecg.rectangle", label: "Fade") { [weak self] in
+                // TODO: T7-audio-fade — dedicated fade-in/out panel on AudioEffectsEngine.
+                self?.setActivePanel(.audioEffects)
+            },
+            ToolStripButton(id: "audio.mute", icon: "speaker.slash", label: "Mute") { [weak self] in
+                // TODO: T7-audio-mute — route through PlaybackViewModel.toggleMute.
+                self?.setActivePanel(.volume)
+            },
+            ToolStripButton(id: "audio.extract", icon: "waveform.and.mic", label: "Extract") { [weak self] in
+                // TODO: T7-audio-extract — split audio off selected video clip.
+                _ = self
+            },
+            ToolStripButton(id: "audio.effects", icon: "slider.horizontal.3", label: "Effects") { [weak self] in
+                self?.setActivePanel(.audioEffects)
+            },
+            ToolStripButton(id: "audio.mix", icon: "dial.high", label: "Mix") { [weak self] in
+                // TODO: T7-audio-mix — Auto-Mix sidechain ducking panel (spec §7.7).
+                self?.setActivePanel(.audioEffects)
+            }
+        ]
+    }
+
+    // MARK: Text-tab tools (T3-4)
+
+    private var textTabTools: [ToolStripButton] {
+        [
+            ToolStripButton(id: "text.add", icon: "textformat", label: "Add Text") { [weak self] in
+                self?.setActivePanel(.textEditor)
+            },
+            ToolStripButton(id: "text.edit", icon: "square.and.pencil", label: "Edit Text") { [weak self] in
+                self?.setActivePanel(.textEditor)
+            },
+            ToolStripButton(id: "text.animate", icon: "sparkles.rectangle.stack", label: "Animate") { [weak self] in
+                // TODO: T7-text-animate — text animation preset panel (spec §6.3).
+                self?.setActivePanel(.textEditor)
+            },
+            ToolStripButton(id: "text.style", icon: "paintpalette", label: "Style") { [weak self] in
+                // TODO: T7-text-style — font/size/color/stroke/shadow panel (spec §6.3).
+                self?.setActivePanel(.textEditor)
+            },
+            ToolStripButton(id: "text.delete", icon: "trash", label: "Delete", isDestructive: true) { [weak self] in
+                self?.deleteSelected()
+            },
+            ToolStripButton(id: "text.caption", icon: "captions.bubble", label: "Caption") { [weak self] in
+                // TODO: T7-text-caption — open CaptionClip editor (spec §9.3).
+                self?.setActivePanel(.textEditor)
+            }
+        ]
+    }
+
+    // MARK: FX-tab tools (T3-5)
+
+    private var fxTabTools: [ToolStripButton] {
+        [
+            ToolStripButton(id: "fx.filter", icon: "camera.filters", label: "Filter") { [weak self] in
+                // TODO: T7-fx-filter — FilterPickerSheet (spec §8.2/§8.3).
+                self?.setActivePanel(.videoEffects)
+            },
+            ToolStripButton(id: "fx.transition", icon: "square.on.square", label: "Transition") { [weak self] in
+                self?.setActivePanel(.transition)
+            },
+            ToolStripButton(id: "fx.browser", icon: "sparkles", label: "FX Browser") { [weak self] in
+                // TODO: T7-fx-browser — FXBrowserSheet (spec §8.3).
+                self?.setActivePanel(.videoEffects)
+            },
+            ToolStripButton(id: "fx.color", icon: "paintpalette.fill", label: "Color") { [weak self] in
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "fx.lut", icon: "square.stack.3d.up", label: "LUT") { [weak self] in
+                // TODO: T7-fx-lut — LUT picker (spec §8.4).
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "fx.stack", icon: "rectangle.stack", label: "Effects") { [weak self] in
+                // TODO: T7-fx-stack — Effects-stack manager (spec §8.3).
+                self?.setActivePanel(.videoEffects)
+            }
+        ]
+    }
+
+    // MARK: Color-tab tools (T3-6)
+
+    private var colorTabTools: [ToolStripButton] {
+        [
+            ToolStripButton(id: "color.wheels", icon: "circle.hexagongrid.fill", label: "Wheels") { [weak self] in
+                // TODO: T7-color-wheels — ColorWheelsPanel (spec §8.5).
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "color.curves", icon: "waveform.path", label: "Curves") { [weak self] in
+                // TODO: T7-color-curves — CurvesEditor (spec §8.6).
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "color.hsl", icon: "paintbrush", label: "HSL") { [weak self] in
+                // TODO: T7-color-hsl — HSLPanel (spec §8.7).
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "color.lut", icon: "square.stack.3d.up", label: "LUT") { [weak self] in
+                // TODO: T7-color-lut — LUT picker (spec §8.4).
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "color.scopes", icon: "chart.bar.xaxis", label: "Scopes") { [weak self] in
+                // TODO: T7-color-scopes — ScopesPanel (spec §8.8).
+                self?.setActivePanel(.colorGrading)
+            },
+            ToolStripButton(id: "color.reset", icon: "arrow.counterclockwise", label: "Reset", isDestructive: true) { [weak self] in
+                // TODO: T7-color-reset — clear color grade on selected clip (destructive confirm).
+                _ = self
+            }
+        ]
     }
 
     // MARK: - Video Loading

@@ -38,6 +38,10 @@ enum EditorHapticType: String, CaseIterable, Sendable {
 
     /// Medium impact for export completion.
     case exportComplete
+
+    /// Selection click when the editor tab bar switches tabs.
+    /// Per spec §2.4 — `UISelectionFeedbackGenerator.selectionChanged()`.
+    case tabSwitch
 }
 
 // MARK: - HapticService
@@ -180,6 +184,8 @@ final class HapticService {
             lightImpactGenerator.impactOccurred()
         case .exportComplete:
             notificationGenerator.notificationOccurred(.success)
+        case .tabSwitch:
+            selectionGenerator.selectionChanged()
         }
     }
 
@@ -235,6 +241,7 @@ final class HapticService {
         case .destructive:    .heavyImpact
         case .keyframeAdd:    .lightImpact
         case .exportComplete: .notification
+        case .tabSwitch:      .selection
         }
     }
 }
