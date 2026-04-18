@@ -115,7 +115,7 @@ struct VideoPreviewView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                Color.black
+                LiquidColors.Canvas.raised
 
                 // Video frame / placeholder with zoom, pan, overlays
                 videoContentWithGestures(in: geometry)
@@ -131,52 +131,33 @@ struct VideoPreviewView: View {
                     )
                 }
 
-                // Fullscreen chevron at bottom center
-                VStack {
-                    Spacer()
-                    Button {
-                        UISelectionFeedbackGenerator().selectionChanged()
-                        onFullscreen()
-                    } label: {
-                        Image(systemName: "chevron.compact.down")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.bottom, LiquidSpacing.sm)
-                    .accessibilityLabel("Fullscreen preview")
-                    .accessibilityHint("Opens video in fullscreen mode")
-                }
+                // Top-left: aspect chip + grid/safe-zone toggles
+                VStack(alignment: .leading, spacing: LiquidSpacing.xs) {
+                    GlassPill(label: aspectLabel)
+                        .accessibilityLabel("Aspect ratio \(aspectLabel)")
 
-                // Overlay toggle buttons (top-left corner)
-                VStack {
-                    HStack {
-                        overlayToggleButtons
-                        Spacer()
-                        Button {
-                            onToggleComparison()
-                        } label: {
-                            Image(systemName: "rectangle.split.3x1")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.white)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: LiquidSpacing.cornerSmall)
-                                        .fill(
-                                            isComparisonMode
-                                            ? LiquidColors.primary.opacity(0.8)
-                                            : Color.black.opacity(0.4)
-                                        )
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Comparison mode")
-                        .accessibilityValue(isComparisonMode ? "On" : "Off")
-                        .accessibilityHint("Toggles before and after comparison")
-                    }
-                    .padding(LiquidSpacing.sm)
-                    Spacer()
+                    overlayToggleButtons
                 }
+                .padding(LiquidSpacing.md)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                // Top-right controls: comparison + fullscreen
+                HStack(spacing: LiquidSpacing.xs) {
+                    IconButton(
+                        systemName: isComparisonMode ? "rectangle.2.swap" : "rectangle.split.2x1",
+                        accessibilityLabel: "Toggle comparison mode",
+                        action: onToggleComparison
+                    )
+                    IconButton(
+                        systemName: "arrow.up.left.and.arrow.down.right",
+                        accessibilityLabel: "Fullscreen preview",
+                        action: onFullscreen
+                    )
+                }
+                .padding(LiquidSpacing.md)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .opacity(isPlaying ? 0 : 1)
+                .animation(.liquid(LiquidMotion.easeOut, reduceMotion: false), value: isPlaying)
             }
         }
         .padding(.horizontal, 40)
@@ -184,6 +165,16 @@ struct VideoPreviewView: View {
         .onChange(of: isPlaying) { oldValue, newValue in
             triggerPlayPauseFlash(isNowPlaying: newValue)
         }
+    }
+
+    /// Human-readable label for the aspect ratio chip.
+    private var aspectLabel: String {
+        guard let ratio = videoAspectRatio else { return "Auto" }
+        if abs(ratio - 16.0 / 9) < 0.01 { return "16:9" }
+        if abs(ratio - 9.0 / 16) < 0.01 { return "9:16" }
+        if abs(ratio - 1.0) < 0.01 { return "1:1" }
+        if abs(ratio - 4.0 / 3) < 0.01 { return "4:3" }
+        return String(format: "%.2f:1", ratio)
     }
 
     // MARK: - Computed Properties

@@ -396,19 +396,11 @@ struct EditorView: View {
     // MARK: - Loading View
 
     private var loadingView: some View {
-        VStack(spacing: LiquidSpacing.xl) {
-            Spacer()
-            ProgressView()
-                .controlSize(.large)
-                .tint(.white)
-            Text("Loading video...")
-                .font(LiquidTypography.subheadline)
-                .foregroundStyle(LiquidColors.textSecondary)
-            Spacer()
+        ZStack {
+            LiquidColors.Canvas.raised.ignoresSafeArea()
+            BrandLoader(caption: "Loading project\u{2026}")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Loading video")
     }
 
     // MARK: - Error View
@@ -656,32 +648,30 @@ struct EditorView: View {
             && viewModel.project.clips.isEmpty
     }
 
-    /// Centered Import Media button shown over the empty preview area.
+    /// Centered Import Media empty state shown over the preview area when no media is loaded.
     @ViewBuilder
     private var importMediaCTA: some View {
-        VStack(spacing: LiquidSpacing.md) {
-            Image(systemName: "film.stack")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.6))
-            Text("This project has no media yet")
-                .font(.headline)
-                .foregroundStyle(.white)
-            PhotosPicker(
-                selection: $pendingImportItem,
-                matching: .videos,
-                photoLibrary: .shared()
-            ) {
-                Label("Import Media", systemImage: "plus")
-                    .font(.headline)
-                    .padding(.horizontal, LiquidSpacing.lg)
-                    .padding(.vertical, LiquidSpacing.sm)
-                    .background(Color.white, in: Capsule())
-                    .foregroundStyle(.black)
+        PhotosPicker(
+            selection: $pendingImportItem,
+            matching: .videos,
+            photoLibrary: .shared()
+        ) {
+            EmptyStateCard(
+                glyph: "film.stack",
+                title: "This project has no media",
+                body: "Add a video to start editing.",
+                ctaTitle: nil,
+                action: nil
+            )
+            .overlay(alignment: .bottom) {
+                // Visually mimic a CTA; tap goes to the whole card via the
+                // PhotosPicker label.
+                PrimaryCTA(title: "Import Media", leadingSystemName: "plus", action: {})
+                    .allowsHitTesting(false)
+                    .padding(.bottom, LiquidSpacing.xxl)
             }
-            .accessibilityLabel("Import media into this project")
         }
-        .padding(LiquidSpacing.lg)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityLabel("Import media into this project")
     }
 
     /// Load the picked video's data, write it to a temp file, and hand it to
