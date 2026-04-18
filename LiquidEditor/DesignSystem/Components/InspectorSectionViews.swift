@@ -179,7 +179,7 @@ struct InspectorOpacitySection: View {
 
 // MARK: - InspectorTextSection (IM9-7)
 
-/// Text-clip content + style summary. Tapping `Edit\u2026` opens the
+/// Text-clip content + style summary. Tapping `Edit\u{2026}` opens the
 /// full Text Editor sheet (C5-1).
 struct InspectorTextSection: View {
     @Binding var text: String
@@ -197,7 +197,7 @@ struct InspectorTextSection: View {
                     .font(.caption)
                     .foregroundStyle(LiquidColors.Text.secondary)
                 Spacer()
-                Button("Edit style\u2026", action: onOpenEditor)
+                Button("Edit style\u{2026}", action: onOpenEditor)
                     .font(.caption)
                     .foregroundStyle(LiquidColors.Accent.amber)
                     .buttonStyle(.plain)
@@ -280,7 +280,7 @@ struct InspectorAnimationSection: View {
                 .foregroundStyle(LiquidColors.Text.secondary)
             Spacer()
             Button("+ Key", action: onAddKeyframe)
-            Button("Lane\u2026", action: onOpenLane)
+            Button("Lane\u{2026}", action: onOpenLane)
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(LiquidColors.Accent.amber)
@@ -441,7 +441,7 @@ struct InspectorFlipRotateCropSection: View {
                 Text("270\u{00B0}").tag(3)
             }
             .pickerStyle(.segmented)
-            Button("Crop\u2026", action: onOpenCropTool)
+            Button("Crop\u{2026}", action: onOpenCropTool)
                 .font(.caption)
                 .foregroundStyle(LiquidColors.Accent.amber)
                 .buttonStyle(.plain)
@@ -521,7 +521,7 @@ struct InspectorLinkGroupSection: View {
             Image(systemName: isLinked ? "link" : "link.badge.plus")
                 .foregroundStyle(LiquidColors.Accent.amber)
             if isLinked {
-                Text("\(memberCount) linked clips\u00A0\u00B7\u00A0\(kindLabel)")
+                Text("\(memberCount) linked clips\u{00A0}\u{00B7}\u{00A0}\(kindLabel)")
                     .font(.caption)
                     .foregroundStyle(LiquidColors.Text.secondary)
             } else {
@@ -602,7 +602,7 @@ struct InspectorClipMarkersSection: View {
 struct MixedValuePlaceholder: View {
     var body: some View {
         HStack(spacing: 4) {
-            Text("\u2014")
+            Text("\u{2014}")
                 .font(.caption.monospaced())
                 .foregroundStyle(LiquidColors.Text.tertiary)
             Text("Mixed")
