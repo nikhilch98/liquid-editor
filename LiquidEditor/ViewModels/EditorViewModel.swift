@@ -216,6 +216,10 @@ final class EditorViewModel {
     /// Playback engine reference (actor-isolated, interacted with via async).
     private var playbackEngine: PlaybackEngine?
 
+    /// Read-only accessor for the playback engine, used by shortcut bindings
+    /// that need to adjust rate directly on the engine (e.g. J/L).
+    var playbackEngineValue: PlaybackEngine? { playbackEngine }
+
     /// Composition manager reference for AVPlayer access.
     /// The player is created by the composition manager during hot-swap.
     private var compositionManager: CompositionManager?
