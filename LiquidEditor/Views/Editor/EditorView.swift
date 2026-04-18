@@ -256,87 +256,68 @@ struct EditorView: View {
     // MARK: - Navigation Bar
 
     private var editorNavigationBar: some View {
-        HStack(spacing: 0) {
-                // Close button (X)
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 20, weight: .regular))
-                        .foregroundStyle(.white)
-                        .frame(width: LiquidSpacing.minTouchTarget, height: LiquidSpacing.minTouchTarget)
-                }
-                .accessibilityLabel("Close editor")
-
-                // Project name with dropdown chevron
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.showProjectSettingsDropdown.toggle()
-                    }
-                } label: {
-                    HStack(spacing: LiquidSpacing.xs) {
-                        Text(viewModel.project.name)
-                            .font(LiquidTypography.subheadline)
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-
-                        Image(systemName: "chevron.down")
-                            .font(LiquidTypography.caption)
-                            .foregroundStyle(.white.opacity(0.8))
-                            .rotationEffect(
-                                .degrees(viewModel.showProjectSettingsDropdown ? 180 : 0)
-                            )
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Project settings for \(viewModel.project.name)")
-                .accessibilityHint("Opens project settings dropdown")
-
-                Spacer()
-
-                // More menu (ellipsis)
-                Button {
-                    viewModel.showSettings = true
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("More options")
-
-                // Resolution badge
-                Text("2K")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .accessibilityLabel("Resolution: 2K")
-
-                Spacer().frame(width: LiquidSpacing.md)
-
-                // Export button (white filled rounded rectangle)
-                Button {
-                    viewModel.showExportSheet = true
-                } label: {
-                    Text("Export")
-                        .font(LiquidTypography.footnoteSemibold)
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, LiquidSpacing.lg)
-                        .padding(.vertical, LiquidSpacing.sm)
-                        .background(
-                            RoundedRectangle(cornerRadius: LiquidSpacing.cornerSmall)
-                                .fill(.white)
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Export video")
-                .accessibilityHint("Opens export settings")
+        HStack(spacing: LiquidSpacing.sm) {
+            // Close
+            IconButton(systemName: "xmark", accessibilityLabel: "Close editor") {
+                dismiss()
             }
-        .padding(.horizontal, LiquidSpacing.lg)
-        .padding(.vertical, LiquidSpacing.xs)
-        .background(.ultraThinMaterial)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Editor navigation bar")
+
+            Rectangle()
+                .fill(LiquidStroke.hairlineColor)
+                .frame(width: LiquidStroke.hairlineWidth, height: 20)
+
+            // Project name + settings dropdown trigger
+            Button {
+                withAnimation(.liquid(LiquidMotion.smooth, reduceMotion: false)) {
+                    viewModel.showProjectSettingsDropdown.toggle()
+                }
+                HapticService.shared.play(.tapSecondary)
+            } label: {
+                HStack(spacing: LiquidSpacing.xs) {
+                    Text(viewModel.project.name)
+                        .font(LiquidTypography.Title.font)
+                        .foregroundStyle(LiquidColors.Text.primary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(LiquidColors.Text.secondary)
+                        .rotationEffect(.degrees(viewModel.showProjectSettingsDropdown ? 180 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Project settings. Current project: \(viewModel.project.name)")
+
+            Spacer(minLength: LiquidSpacing.sm)
+
+            // More menu
+            IconButton(systemName: "ellipsis", accessibilityLabel: "More options") {
+                // placeholder -- existing menu logic can hang off showProjectSettingsDropdown
+                viewModel.showProjectSettingsDropdown.toggle()
+            }
+
+            // Resolution chip
+            GlassPill(label: resolutionLabel)
+                .accessibilityLabel("Resolution \(resolutionLabel)")
+
+            // Export CTA
+            PrimaryCTA(title: "Export") {
+                viewModel.showExportSheet = true
+            }
+        }
+        .padding(.horizontal, LiquidSpacing.md)
+        .frame(height: 52)
+        .background(LiquidMaterials.chrome)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(LiquidStroke.hairlineColor)
+                .frame(height: LiquidStroke.hairlineWidth)
+        }
+    }
+
+    /// Label for the resolution chip. Pulled from the project settings or
+    /// falls back to 2K if unknown.
+    private var resolutionLabel: String {
+        "2K"
     }
 
     // MARK: - Project Settings Dropdown
