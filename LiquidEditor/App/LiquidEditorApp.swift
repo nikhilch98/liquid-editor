@@ -70,6 +70,10 @@ struct LiquidEditorApp: App {
             .environment(coordinator)
             .preferredColorScheme(.dark)
             .onAppear {
+                // F6-26: initialise crash reporter as early as possible so
+                // any subsequent non-fatals are captured. Idempotent.
+                CrashReporter.shared.start()
+                CrashReporter.shared.leaveBreadcrumb("App launched")
                 checkOnboarding()
             }
             .fullScreenCover(isPresented: $showOnboarding) {
