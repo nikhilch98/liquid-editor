@@ -81,6 +81,7 @@ struct EditorView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let formFactor = FormFactor(canvasSize: geometry.size)
             VStack(spacing: 0) {
                 // Navigation bar
                 editorNavigationBar
@@ -138,6 +139,7 @@ struct EditorView: View {
                     EditorToolbar(viewModel: viewModel, playbackViewModel: playbackViewModel)
                 }
             }
+            .environment(\.formFactor, formFactor)
             .overlay {
                 // Hidden keyboard shortcut buttons
                 keyboardShortcutButtons
