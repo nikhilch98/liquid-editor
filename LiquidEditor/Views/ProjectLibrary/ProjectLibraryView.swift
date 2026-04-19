@@ -99,6 +99,11 @@ struct ProjectLibraryView: View {
                 Tab("People", systemImage: "person.2", value: 1) {
                     peopleTab
                 }
+
+                // S2-21: "You" tab with profile + app-settings links.
+                Tab("You", systemImage: "person.crop.circle", value: 2) {
+                    YouTab()
+                }
             }
 
             // Floating action button (above tab bar)
@@ -471,6 +476,20 @@ struct ProjectLibraryView: View {
 
     @ToolbarContentBuilder
     private var projectsToolbar: some ToolbarContent {
+        // S2-22: Avatar menu on leading side of Projects header.
+        ToolbarItem(placement: .topBarLeading) {
+            AvatarMenu(initials: "YA") { action in
+                switch action {
+                case .myAccount, .settings:
+                    // Jump to You tab so the user lands on their profile.
+                    currentTabIndex = 2
+                case .switchAccount, .signOut:
+                    // TODO: wire account flow; menu still dismisses.
+                    break
+                }
+            }
+        }
+
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 4) {
                 // Select / Done toggle for edit mode
