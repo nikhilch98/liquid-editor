@@ -2,7 +2,37 @@
 
 > **Complete feature documentation for the pure Swift Liquid Editor**
 >
-> Last Updated: 2026-02-13
+> Last Updated: 2026-04-19
+
+---
+
+## Recent Updates (2026-04-19)
+
+The premium-UI redesign landed along with a large batch of editing, color,
+accessibility, and platform integration work. Highlights:
+
+- **Timeline operations:** central `TimelineCutCommand`, `TimelineDeleteCommand`,
+  `RippleEditController`, snapshot service, and `CompoundClip` support.
+- **Inspector sections:** tab-bar / tool-strip / right-hand inspector rebuilt
+  around the 5-tab (edit / audio / text / fx / color) layout.
+- **Color grading:** scope engines (waveform / vectorscope / histogram),
+  color-wheels panel, curves editor, HSL panel, and LUT picker integration.
+- **Audio tools:** audio extract, EQ panel, pitch panel, audio mixdown,
+  dialog detection service.
+- **Stabilization + motion:** stabilization pipeline for handheld footage
+  (<5s on a 30 s clip target).
+- **Accessibility:** Dynamic Type, VoiceOver, Reduce-Motion coverage across
+  editor panels and library screens.
+- **iPad platform:** split-view editor layout, pencil/trackpad affordances,
+  and multi-window support.
+- **OS integrations:** `liquideditor://` deep links + Universal Links
+  (OS17-3), Spotlight indexing, `os_signpost` telemetry helper, and
+  `Localizable.xcstrings` bootstrap.
+- **Export screens:** redesigned export sheet, export destinations,
+  background export, proxy settings, custom-editor preset flow, and
+  filename templates.
+- **Library / settings:** batch 5 UI overhaul delivering the new library
+  grid, project duplicate/backup/restore flows, and settings screen.
 
 ---
 

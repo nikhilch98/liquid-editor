@@ -2,7 +2,40 @@
 
 **Document Purpose:** Technical reference for data flow, state management, service interactions, and implementation patterns in the pure Swift Liquid Editor.
 
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-04-19
+
+---
+
+## Premium UI Redesign
+
+The editor screen was restructured around the premium-UI spec
+(`docs/superpowers/specs/2026-04-18-premium-ui-redesign-spec.md`). Key
+structural changes visible to code working on the editor surface:
+
+- **Tab bar:** a 5-tab model (`EditorTabID.edit / audio / text / fx / color`)
+  replaces the legacy Edit / FX / Overlay / Audio / Smart tabs. The legacy
+  `EditorTab` enum is retained for source compatibility but the active tab
+  is driven by `EditorViewModel.selectedTab`.
+- **Tool strip:** each tab exposes exactly 6 tools via
+  `EditorViewModel.currentTabTools`, which returns `ToolStripButton`
+  arrays (`editTabTools`, `audioTabTools`, `textTabTools`, `fxTabTools`,
+  `colorTabTools`). Tool closures route through existing methods or
+  `setActivePanel(...)`.
+- **Right-hand inspector:** inspector panels are composed per-tab and
+  read from the currently selected clip. Panels use the
+  `ActiveToolPanel` enum for sheet routing (`.colorGrading`,
+  `.videoEffects`, `.crop`, `.transition`, `.audioEffects`,
+  `.textEditor`, `.stickerPicker`, `.volume`, `.speed`,
+  `.trackManagement`, `.keyframeEditor`, `.autoReframe`, `.personSelection`).
+- **Centralized edit commands:** `TimelineCutCommand`,
+  `TimelineDeleteCommand`, and `RippleEditController` mediate ripple vs
+  non-ripple behavior for all destructive edits triggered from the
+  tool strip.
+- **Clipboard model:** `ClipboardStore` holds a single
+  `TimelineClipboardEntry` for Cut / Copy / Paste across the tool strip.
+- **ViewModel contract:** `EditorViewModel` remains the single
+  `@Observable @MainActor` state owner; inspector panels observe its
+  properties directly rather than owning their own state.
 
 ---
 

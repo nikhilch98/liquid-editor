@@ -29,6 +29,7 @@ This app must maintain **premium performance** at all times.
 | Scrub (uncached) | < 50ms | Decode + display |
 | Composition rebuild | < 20ms | Background thread |
 | Frame cache | < 300MB | 120 frames at 1080p |
+| Stabilization | < 5s for 30s clip | Vision-based smoothing on background actor |
 
 ---
 
