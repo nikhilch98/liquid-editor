@@ -179,8 +179,12 @@ struct ProjectCardView: View {
         HStack(spacing: 2) {
             ForEach(1...5, id: \.self) { index in
                 Image(systemName: index <= starCount ? "star.fill" : "star")
-                    .font(.system(size: 8))
-                    .foregroundStyle(index <= starCount ? Color.orange : Color(.systemGray))
+                    .font(.system(size: 9))
+                    .foregroundStyle(
+                        index <= starCount
+                        ? LiquidColors.Accent.amber
+                        : LiquidColors.Text.tertiary
+                    )
             }
         }
     }
@@ -189,7 +193,7 @@ struct ProjectCardView: View {
         VStack(spacing: LiquidSpacing.sm) {
             Image(systemName: "film")
                 .font(.system(size: 32, weight: .light))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(LiquidColors.Text.secondary)
         }
     }
 
@@ -206,14 +210,15 @@ struct ProjectCardView: View {
                 }
 
                 Text(project.name)
-                    .font(LiquidTypography.footnoteSemibold)
+                    .font(LiquidTypography.subheadlineSemibold)
+                    .foregroundStyle(LiquidColors.Text.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
 
             Text(compactMetadataLine)
                 .font(LiquidTypography.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(LiquidColors.Text.secondary)
         }
         .padding(.horizontal, LiquidSpacing.xxs)
         .accessibilityElement(children: .combine)
