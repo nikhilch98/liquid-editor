@@ -42,12 +42,12 @@ struct PerformanceBudgets: Sendable {
     static let frameCacheMaxMB: Int = 300
 
     // Derived seconds-precision budgets, convenient for `TimeInterval` math.
-    static let timelineLookupBudget: TimeInterval = Double(timelineLookupMaxUs) / 1_000_000.0
-    static let editOpBudget: TimeInterval = editOpMaxMs / 1_000.0
-    static let undoRedoBudget: TimeInterval = Double(undoRedoMaxUs) / 1_000_000.0
-    static let scrubCachedBudget: TimeInterval = scrubCachedMaxMs / 1_000.0
-    static let scrubUncachedBudget: TimeInterval = scrubUncachedMaxMs / 1_000.0
-    static let compositionRebuildBudget: TimeInterval = compositionRebuildMaxMs / 1_000.0
+    nonisolated static let timelineLookupBudget: TimeInterval = 100.0 / 1_000_000.0
+    nonisolated static let editOpBudget: TimeInterval = 1.0 / 1_000.0
+    nonisolated static let undoRedoBudget: TimeInterval = 10.0 / 1_000_000.0
+    nonisolated static let scrubCachedBudget: TimeInterval = 2.0 / 1_000.0
+    nonisolated static let scrubUncachedBudget: TimeInterval = 50.0 / 1_000.0
+    nonisolated static let compositionRebuildBudget: TimeInterval = 20.0 / 1_000.0
 
     private init() {}
 

@@ -36,7 +36,7 @@ enum SnapKind: Sendable, Hashable {
 /// A single snap guide. `positionSec` is an absolute timeline time.
 /// The overlay converts it to an x-coordinate using the
 /// `secondsToPoints` closure supplied by the caller.
-struct SnapGuide: Sendable, Hashable, Identifiable {
+struct TimelineSnapGuide: Sendable, Hashable, Identifiable {
     let positionSec: Double
     let kind: SnapKind
 
@@ -52,7 +52,7 @@ struct SnapGuideOverlay: View {
 
     /// Active snap guides to render. When empty the overlay animates
     /// out.
-    let guides: [SnapGuide]
+    let guides: [TimelineSnapGuide]
 
     /// Total overlay width in points (= timeline content width).
     let width: CGFloat
@@ -94,7 +94,7 @@ struct SnapGuideOverlay: View {
     // MARK: - Line
 
     @ViewBuilder
-    private func lineView(for guide: SnapGuide) -> some View {
+    private func lineView(for guide: TimelineSnapGuide) -> some View {
         let x = secondsToPoints(guide.positionSec)
         let clamped = min(max(x, 0), width)
         let tint = color(for: guide.kind)
@@ -138,10 +138,10 @@ struct SnapGuideOverlay: View {
 #Preview {
     SnapGuideOverlay(
         guides: [
-            SnapGuide(positionSec: 0.5, kind: .playhead),
-            SnapGuide(positionSec: 1.25, kind: .clipEdge),
-            SnapGuide(positionSec: 2.0, kind: .marker),
-            SnapGuide(positionSec: 3.5, kind: .beat),
+            TimelineSnapGuide(positionSec: 0.5, kind: .playhead),
+            TimelineSnapGuide(positionSec: 1.25, kind: .clipEdge),
+            TimelineSnapGuide(positionSec: 2.0, kind: .marker),
+            TimelineSnapGuide(positionSec: 3.5, kind: .beat),
         ],
         width: 400,
         height: 120,

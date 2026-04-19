@@ -124,7 +124,7 @@ final class LoudnessNormalizer {
     // MARK: - Logger
 
     @ObservationIgnored
-    private static let logger = Logger(
+    nonisolated(unsafe) private static let logger = Logger(
         subsystem: "com.liquideditor",
         category: "LoudnessNormalizer"
     )
