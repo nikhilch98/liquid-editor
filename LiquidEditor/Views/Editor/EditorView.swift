@@ -55,6 +55,14 @@ struct EditorView: View {
     /// IP16-2: whether a drag is currently over the editor canvas.
     @State private var isDropTargeted: Bool = false
 
+    /// IM9-1: Inspector VM projecting EditorViewModel.selectedClipId into
+    /// an ordered list of sectionIDs per spec §10.2. Shown in the
+    /// EditorInspectorSheet presented from the nav-bar button.
+    @State private var inspectorViewModel = InspectorViewModel()
+
+    /// Whether the Inspector sheet is currently presented.
+    @State private var showInspectorSheet: Bool = false
+
     // MARK: - Initialization
 
     /// Creates an editor view for the given project.
@@ -225,6 +233,14 @@ struct EditorView: View {
                 onClose: { viewModel.isTrackDebugActive = false }
             )
         }
+        .sheet(isPresented: $showInspectorSheet) {
+            EditorInspectorSheet(
+                editorViewModel: viewModel,
+                inspectorViewModel: inspectorViewModel
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .fullScreenCover(isPresented: $viewModel.showFullscreenPreview) {
             FullscreenPreviewView(
                 totalDuration: viewModel.totalDuration,
@@ -303,6 +319,13 @@ struct EditorView: View {
                 // placeholder -- existing menu logic can hang off showProjectSettingsDropdown
                 viewModel.showProjectSettingsDropdown.toggle()
             }
+
+            // Inspector toggle (P1-2 → IM9-*): presents the section list
+            // for the current selection.
+            IconButton(systemName: "slider.horizontal.below.rectangle", accessibilityLabel: "Inspector") {
+                showInspectorSheet = true
+            }
+            .pointerHover()
 
             // Resolution chip
             GlassPill(label: resolutionLabel)
