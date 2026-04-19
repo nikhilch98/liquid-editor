@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LiquidEditor — Project Library (iPhone)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --canvas-base:    #07070A;
+  --canvas-raised:  #0F0F12;
+  --canvas-elev:    #1A1A1F;
+  --text-primary:   #F3EEE6;
+  --text-secondary: #9C9A93;
+  --text-tertiary:  #5A5852;
+  --text-on-accent: #07070A;
+  --accent-amber:   #E6B340;
+  --accent-glow:    rgba(230,179,64,0.37);
+  --stroke-hairline:  rgba(255,255,255,0.06);
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-full: 999px;
+  --type-title:      600 17px/20px -apple-system, SF Pro Text, ui-sans-serif;
+  --type-body:       400 15px/20px -apple-system, SF Pro Text, ui-sans-serif;
+  --type-caption:    500 12px/16px -apple-system, SF Pro Text, ui-sans-serif;
+  --type-mono:       500 13px/16px ui-monospace, "SF Mono", "Menlo";
+  --type-display:    600 34px/40px -apple-system, SFProDisplay-Bold, ui-rounded;
+  --type-subhead-semi: 600 15px/18px -apple-system, SF Pro Text, ui-sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #000; color: var(--text-primary); font: var(--type-body); }
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 32px; }
+.device {
+  width: 393px; height: 852px; background: var(--canvas-base);
+  border-radius: 56px;
+  box-shadow: 0 0 0 10px #0a0a0a, 0 0 0 12px #1a1a1a, 0 30px 80px rgba(0,0,0,0.5);
+  overflow: hidden; position: relative;
+}
+.island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 122px; height: 36px; background: #000; border-radius: 20px; z-index: 50; }
+
+.status { height: 59px; padding-top: 18px; display: flex; justify-content: space-between; padding-left: 24px; padding-right: 24px; align-items: center; font: var(--type-caption); }
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 20px 4px;
+}
+.header .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #3a2b55, #20163a);
+  display: grid; place-items: center; color: var(--text-primary); font-weight: 600; font-size: 13px;
+  border: 1px solid var(--stroke-hairline);
+}
+.header .wordmark { font: var(--type-display); letter-spacing: -0.5px; }
+.header .search-btn { width: 32px; height: 32px; display: grid; place-items: center; color: var(--text-primary); font-size: 18px; }
+
+.search {
+  margin: 4px 20px 16px; height: 40px; background: var(--canvas-raised);
+  border: 1px solid var(--stroke-hairline); border-radius: var(--r-full);
+  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  color: var(--text-secondary); font: var(--type-body);
+}
+
+.section-title { padding: 0 20px; font: var(--type-subhead-semi); color: var(--text-primary); margin-top: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.section-title .see-all { font: var(--type-caption); color: var(--accent-amber); }
+
+/* Recent rail — horizontal scroll */
+.rail {
+  display: flex; gap: 10px; padding: 0 20px 8px; overflow-x: auto; scrollbar-width: none;
+}
+.rail::-webkit-scrollbar { display: none; }
+.recent-card {
+  flex: 0 0 auto; width: 110px; height: 154px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, #3a2b55 0%, #201632 100%);
+  position: relative; overflow: hidden;
+  border: 1px solid var(--stroke-hairline);
+}
+.recent-card.sunset { background: linear-gradient(135deg, #6b3a2a, #3a1810 100%); }
+.recent-card.run { background: linear-gradient(135deg, #2a4a6b, #101c2a 100%); }
+.recent-card.intro { background: linear-gradient(135deg, #1e3a2a, #102018 100%); }
+.recent-card .dur {
+  position: absolute; bottom: 8px; right: 8px;
+  padding: 2px 6px; background: rgba(0,0,0,0.55); border-radius: var(--r-sm);
+  font: var(--type-mono); font-size: 10px;
+}
+
+/* All projects — 2-col grid */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px 20px 100px; }
+.card {
+  background: transparent; display: flex; flex-direction: column; gap: 8px;
+}
+.card .thumb {
+  aspect-ratio: 16/10; border-radius: var(--r-lg); position: relative; overflow: hidden;
+  border: 1px solid var(--stroke-hairline);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+}
+.thumb-1 { background: linear-gradient(135deg, #553a6b, #271540); }
+.thumb-2 { background: linear-gradient(135deg, #6b4a2a, #3a2010); }
+.thumb-3 { background: linear-gradient(135deg, #2a6b5c, #102d28); }
+.thumb-4 { background: linear-gradient(135deg, #3a4a6b, #1a2638); }
+.card .thumb .dur {
+  position: absolute; bottom: 8px; right: 8px;
+  padding: 2px 6px; background: rgba(0,0,0,0.6); border-radius: var(--r-sm);
+  font: var(--type-mono); font-size: 10px; color: var(--text-primary);
+}
+.card .thumb .stars {
+  position: absolute; bottom: 8px; left: 8px; display: flex; gap: 2px;
+}
+.card .thumb .stars span { color: var(--accent-amber); font-size: 9px; }
+.card .thumb .stars .off { color: var(--text-tertiary); }
+.card .thumb .fav {
+  position: absolute; top: 8px; left: 8px;
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(0,0,0,0.5); color: var(--accent-destructive, #E5534A); font-size: 11px;
+}
+.card .name { font: var(--type-subhead-semi); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .meta { font: var(--type-caption); color: var(--text-secondary); }
+
+/* FAB */
+.fab {
+  position: absolute; right: 20px; bottom: 110px;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--accent-amber); color: var(--text-on-accent);
+  display: grid; place-items: center; font-size: 28px; font-weight: 500;
+  box-shadow: 0 8px 20px var(--accent-glow);
+}
+
+/* Tab bar */
+.tabbar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 83px; padding-bottom: 34px;
+  background: rgba(15,15,18,0.72);
+  backdrop-filter: blur(24px) saturate(140%);
+  border-top: 1px solid var(--stroke-hairline);
+  display: flex; align-items: flex-start; padding-top: 8px;
+}
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text-secondary); }
+.tab .glyph { font-size: 22px; height: 24px; display: grid; place-items: center; }
+.tab .label { font: var(--type-caption); font-size: 10px; }
+.tab.active { color: var(--accent-amber); font-weight: 600; }
+.tab.active .label { font-weight: 600; }
+.caption { width: 393px; text-align: center; color: var(--text-secondary); font: var(--type-caption); margin-top: 12px; }
+</style>
+</head>
+<body>
+<div>
+<div class="device">
+  <div class="island"></div>
+  <div class="status">
+    <span style="font-weight:600">9:41</span>
+    <span>••• ▣ ■</span>
+  </div>
+
+  <div class="header">
+    <div class="avatar">YA</div>
+    <div class="wordmark">liquid.</div>
+    <div class="search-btn">⌕</div>
+  </div>
+
+  <div class="search">⌕&nbsp;&nbsp;Search projects…</div>
+
+  <div class="section-title">
+    Recent
+    <span class="see-all">See all</span>
+  </div>
+  <div class="rail">
+    <div class="recent-card"><div class="dur">00:42</div></div>
+    <div class="recent-card sunset"><div class="dur">02:11</div></div>
+    <div class="recent-card run"><div class="dur">00:28</div></div>
+    <div class="recent-card intro"><div class="dur">01:05</div></div>
+  </div>
+
+  <div class="section-title">All projects</div>
+  <div class="grid">
+    <div class="card">
+      <div class="thumb thumb-1">
+        <div class="fav">♥</div>
+        <div class="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span class="off">☆</span></div>
+        <div class="dur">00:42</div>
+      </div>
+      <div class="name">Summer Edit</div>
+      <div class="meta">2d · 42 MB</div>
+    </div>
+    <div class="card">
+      <div class="thumb thumb-2">
+        <div class="stars"><span>★</span><span>★</span><span>★</span><span class="off">☆</span><span class="off">☆</span></div>
+        <div class="dur">02:11</div>
+      </div>
+      <div class="name">Sunset Drive</div>
+      <div class="meta">1w · 128 MB</div>
+    </div>
+    <div class="card">
+      <div class="thumb thumb-3">
+        <div class="dur">00:28</div>
+      </div>
+      <div class="name">Morning Run</div>
+      <div class="meta">3w · 58 MB</div>
+    </div>
+    <div class="card">
+      <div class="thumb thumb-4">
+        <div class="dur">01:05</div>
+      </div>
+      <div class="name">Intro Sting</div>
+      <div class="meta">Apr 10 · 72 MB</div>
+    </div>
+  </div>
+
+  <div class="fab">+</div>
+
+  <div class="tabbar">
+    <div class="tab active"><div class="glyph">▤</div><div class="label">Projects</div></div>
+    <div class="tab"><div class="glyph">■</div><div class="label">Templates</div></div>
+    <div class="tab"><div class="glyph">✎</div><div class="label">Drafts</div></div>
+    <div class="tab"><div class="glyph">○</div><div class="label">You</div></div>
+  </div>
+</div>
+<div class="caption">Project Library — iPhone · approved design per §4.1</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LiquidEditor — Approved design mockups</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --canvas-base:    #07070A;
+  --canvas-raised:  #0F0F12;
+  --canvas-elev:    #1A1A1F;
+  --text-primary:   #F3EEE6;
+  --text-secondary: #9C9A93;
+  --accent-amber:   #E6B340;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--canvas-base); color: var(--text-primary); min-height: 100vh;
+  font: 400 16px/22px -apple-system, SF Pro Text, ui-sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 64px 32px; }
+h1 { font: 600 34px/38px -apple-system, SFProDisplay-Bold, ui-rounded; letter-spacing: -0.5px; margin-bottom: 12px; }
+p.lead { color: var(--text-secondary); margin-bottom: 36px; max-width: 620px; }
+ul { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+li a {
+  display: block; padding: 20px; border-radius: 14px;
+  background: var(--canvas-raised);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text-primary); text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+li a:hover { border-color: var(--accent-amber); transform: translateY(-2px); }
+li a .t { font: 600 17px/20px -apple-system; display: block; margin-bottom: 4px; }
+li a .s { color: var(--text-secondary); font-size: 13px; }
+.hint { margin-top: 40px; padding: 16px 20px; background: rgba(230,179,64,0.08); border: 1px solid var(--accent-amber); border-radius: 12px; color: var(--text-primary); font-size: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Approved design mockups</h1>
+  <p class="lead">Static HTML mockups rebuilt from the approved spec
+  (<code>docs/superpowers/specs/2026-04-18-liquideditor-premium-ui-design.md</code>).
+  The original <code>.superpowers/brainstorm/</code> HTML mockups referenced in
+  the spec were not committed to the repo, so these are a reconstruction
+  pinned to the textual design tokens (hex values, spacing, typography)
+  verbatim. Open each in any browser; no JS, no external assets.</p>
+
+  <ul>
+    <li><a href="editor-iphone.html">
+      <span class="t">Editor — iPhone portrait</span>
+      <span class="s">Chrome, preview, transport, timeline, tool shelf (§3.1).</span>
+    </a></li>
+    <li><a href="library-iphone.html">
+      <span class="t">Project Library — iPhone</span>
+      <span class="s">Header, search, recent rail, grid, FAB, 4-tab bar (§4.1).</span>
+    </a></li>
+    <li><a href="export-iphone.html">
+      <span class="t">Export — iPhone</span>
+      <span class="s">Ring, preset segmented, steppers, toggles, sticky CTA (§5.2).</span>
+    </a></li>
+  </ul>
+
+  <div class="hint">
+    <strong>How to use:</strong> open these alongside the running app to
+    compare. Hex tokens in each file exactly match
+    <code>LiquidColors</code> in the codebase. If the app doesn't look
+    like the mockups, the screen is missing a token or using a legacy one.
+  </div>
+</main>
+</body>
+</html>

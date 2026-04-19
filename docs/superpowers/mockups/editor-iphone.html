@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LiquidEditor — Editor (iPhone portrait)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Tokens straight from docs/superpowers/specs/2026-04-18-liquideditor-premium-ui-design.md */
+:root {
+  --canvas-base:    #07070A;
+  --canvas-raised:  #0F0F12;
+  --canvas-elev:    #1A1A1F;
+  --text-primary:   #F3EEE6;
+  --text-secondary: #9C9A93;
+  --text-tertiary:  #5A5852;
+  --text-on-accent: #07070A;
+  --accent-amber:   #E6B340;
+  --accent-glow:    rgba(230,179,64,0.37);
+  --accent-destructive: #E5534A;
+  --accent-success: #6BCB77;
+  --stroke-hairline:  rgba(255,255,255,0.06);
+  --stroke-prominent: rgba(255,255,255,0.12);
+  --stroke-active:    var(--accent-amber);
+
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+  --shadow-md: 0 6px 12px rgba(0,0,0,0.14);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,0.22);
+
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-xl: 22px; --r-full: 999px;
+  --s-xs: 4px; --s-sm: 8px; --s-md: 12px; --s-lg: 16px; --s-xl: 24px; --s-xxl: 32px;
+
+  --type-display:    600 28px/32px -apple-system, SFProDisplay-Semibold, ui-rounded;
+  --type-title:      600 17px/20px -apple-system, SF Pro Text, ui-sans-serif;
+  --type-body:       400 15px/20px -apple-system, SF Pro Text, ui-sans-serif;
+  --type-caption:    500 12px/16px -apple-system, SF Pro Text, ui-sans-serif;
+  --type-mono:       500 13px/16px ui-monospace, "SF Mono", "Menlo";
+  --type-mono-large: 600 18px/22px ui-monospace, "SF Mono", "Menlo";
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #000; color: var(--text-primary); font: var(--type-body); }
+body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 32px; flex-wrap: wrap; gap: 32px; }
+
+/* iPhone 17 Pro physical frame */
+.device {
+  width: 393px; height: 852px;
+  background: var(--canvas-base);
+  border-radius: 56px;
+  box-shadow: 0 0 0 10px #0a0a0a, 0 0 0 12px #1a1a1a, 0 30px 80px rgba(0,0,0,0.5);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  position: relative;
+  font: var(--type-body);
+}
+.caption { width: 393px; text-align: center; color: var(--text-secondary); font: var(--type-caption); margin-top: -12px; }
+
+/* Dynamic Island */
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 122px; height: 36px; background: #000; border-radius: 20px; z-index: 50;
+}
+
+/* ---------- Region 1: Nav bar (chrome, 52pt) ---------- */
+.nav {
+  height: 52px;
+  margin-top: 59px; /* safe area + dynamic island */
+  display: flex; align-items: center; gap: var(--s-sm);
+  padding: 0 var(--s-md);
+  background: rgba(15,15,18,0.72);
+  backdrop-filter: blur(24px) saturate(140%);
+  border-bottom: 1px solid var(--stroke-hairline);
+}
+.nav .close { width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center; color: var(--text-primary); font-size: 18px; }
+.nav .divider { width: 1px; height: 20px; background: var(--stroke-hairline); }
+.nav .project {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  font: var(--type-title); color: var(--text-primary);
+}
+.nav .project .chev { color: var(--text-secondary); font-size: 10px; }
+.nav .ellipsis { color: var(--text-primary); padding: 0 var(--s-sm); font-size: 20px; }
+.nav .reso {
+  padding: 6px 10px; border-radius: var(--r-full);
+  font: var(--type-caption); color: var(--text-primary);
+  border: 1px solid var(--stroke-active);
+  background: rgba(230,179,64,0.10);
+}
+.nav .cta {
+  height: 32px; min-width: 96px; padding: 0 var(--s-lg);
+  background: var(--accent-amber); color: var(--text-on-accent);
+  border-radius: var(--r-full); font: var(--type-title);
+  display: grid; place-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Region 2: Preview (flex 32%) ---------- */
+.preview {
+  height: 276px; /* ~32% of 852 */
+  position: relative;
+  margin: var(--s-sm) var(--s-sm) 0;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(120% 80% at 50% 30%, #262a3c, #0d1018 65%, #07070A);
+  overflow: hidden;
+}
+.preview .aspect {
+  position: absolute; top: var(--s-md); left: var(--s-md);
+  padding: 4px 8px; border-radius: var(--r-full);
+  background: rgba(15,15,18,0.6); backdrop-filter: blur(12px);
+  border: 1px solid var(--stroke-hairline);
+  font: var(--type-mono); color: var(--text-primary);
+}
+.preview .reso-badge {
+  position: absolute; top: var(--s-md); right: var(--s-md);
+  padding: 4px 10px; border-radius: var(--r-full);
+  background: rgba(15,15,18,0.6); backdrop-filter: blur(12px);
+  border: 1px solid var(--stroke-hairline);
+  font: var(--type-mono); color: var(--text-primary);
+}
+.preview .time-chip {
+  position: absolute; bottom: var(--s-md); left: var(--s-md);
+  padding: 4px 10px; border-radius: var(--r-full);
+  background: rgba(15,15,18,0.75); backdrop-filter: blur(12px);
+  border: 1px solid var(--stroke-hairline);
+  font: var(--type-mono); color: var(--text-primary);
+  display: flex; align-items: center; gap: 6px;
+}
+.preview .time-chip .dot { width: 6px; height: 6px; background: var(--accent-amber); border-radius: 50%; }
+.preview .fullscreen {
+  position: absolute; bottom: var(--s-md); right: var(--s-md);
+  width: 32px; height: 32px; border-radius: var(--r-full);
+  background: rgba(15,15,18,0.6); backdrop-filter: blur(12px);
+  border: 1px solid var(--stroke-hairline);
+  display: grid; place-items: center; color: var(--text-primary); font-size: 13px;
+}
+
+/* ---------- Region 3: Transport row (56pt) ---------- */
+.transport {
+  height: 56px; margin-top: var(--s-sm);
+  padding: 0 var(--s-md);
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto auto 1fr auto;
+  align-items: center; gap: var(--s-md);
+}
+.transport .iconbtn { width: 40px; height: 40px; display: grid; place-items: center; color: var(--text-primary); font-size: 18px; }
+.transport .play {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--accent-amber);
+  color: var(--text-on-accent);
+  display: grid; place-items: center; font-size: 22px;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+.transport .timecode { justify-self: end; display: flex; gap: 6px; align-items: baseline; }
+.transport .timecode .current { font: var(--type-mono-large); color: var(--text-primary); }
+.transport .timecode .total { font: var(--type-mono); color: var(--text-secondary); }
+
+/* ---------- Region 4: Timeline (glass card, 180pt) ---------- */
+.timeline {
+  height: 180px; margin: var(--s-xs) var(--s-sm) 0;
+  border-radius: var(--r-md);
+  background: var(--canvas-raised);
+  border: 1px solid var(--stroke-hairline);
+  display: flex; flex-direction: column;
+  overflow: hidden; position: relative;
+}
+.ruler {
+  height: 22px;
+  border-bottom: 1px solid var(--stroke-hairline);
+  display: flex; align-items: end; padding: 0 var(--s-sm) 2px;
+  font: var(--type-mono); color: var(--text-tertiary); font-size: 10px;
+  gap: 48px;
+}
+.ruler span { position: relative; }
+.ruler span::before { content:""; position: absolute; bottom: -2px; left: 0; width: 1px; height: 6px; background: var(--stroke-hairline); }
+.tracks { flex: 1; padding: 4px var(--s-sm); display: flex; flex-direction: column; gap: 4px; overflow: hidden; position: relative; }
+.lane { height: 42px; border-radius: var(--r-sm); position: relative; display: flex; align-items: stretch; gap: 2px; }
+.clip {
+  height: 100%; border-radius: var(--r-sm);
+  padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between;
+  font: var(--type-caption); color: var(--text-primary);
+  overflow: hidden;
+}
+.clip.v1 {
+  background: linear-gradient(135deg, #3a2b55 0%, #201632 100%);
+  flex: 3;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.clip.v2 {
+  background: linear-gradient(135deg, #4a2f5c 0%, #281438 100%);
+  flex: 2;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.clip.audio {
+  background: linear-gradient(135deg, #1e3a2a 0%, #102018 100%);
+  flex: 4;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.clip.selected {
+  border: 1.5px solid var(--accent-amber);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.clip .name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
+.clip .dur { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.clip .spacer { flex: 0.2; background: transparent; pointer-events: none; }
+
+/* Amber playhead */
+.playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px;
+  background: var(--accent-amber);
+  left: 44%;
+}
+.playhead .chip {
+  position: absolute; top: -14px; left: -22px;
+  padding: 3px 8px; border-radius: var(--r-full);
+  background: var(--accent-amber); color: var(--text-on-accent);
+  font: var(--type-mono); font-size: 11px; font-weight: 600;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* ---------- Region 5: Bottom toolbar (2 rows) ---------- */
+.toolbar {
+  margin-top: auto;
+  background: rgba(15,15,18,0.72);
+  backdrop-filter: blur(24px) saturate(140%);
+  border-top: 1px solid var(--stroke-hairline);
+  padding-bottom: env(safe-area-inset-bottom, 34px);
+}
+.tools {
+  display: flex; gap: 4px; padding: var(--s-xs) var(--s-sm);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tools::-webkit-scrollbar { display: none; }
+.tool {
+  width: 64px; padding: 6px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border-radius: var(--r-md);
+  color: var(--text-secondary); font: var(--type-caption); font-size: 11px;
+}
+.tool .glyph { font-size: 22px; width: 28px; height: 28px; display: grid; place-items: center; }
+.tool.active {
+  color: var(--accent-amber);
+  background: rgba(230,179,64,0.10);
+  border: 1px solid var(--accent-amber);
+  font-weight: 600;
+}
+
+.tabs {
+  display: flex; gap: 0;
+  padding: 4px 0 8px;
+  border-top: 1px solid var(--stroke-hairline);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 0;
+  color: var(--text-secondary);
+}
+.tab .glyph { font-size: 22px; height: 24px; display: grid; place-items: center; }
+.tab .label { font: var(--type-caption); font-size: 10px; }
+.tab.active { color: var(--accent-amber); font-weight: 600; }
+.tab.active .label { font-weight: 600; }
+.tab .pill {
+  width: 16px; height: 2px; background: transparent; border-radius: var(--r-full);
+  margin-top: 2px;
+}
+.tab.active .pill { background: var(--accent-amber); }
+
+/* Annotation pins */
+.pin { position: fixed; padding: 6px 10px; font: var(--type-caption); background: var(--canvas-elev); color: var(--text-primary); border-radius: var(--r-sm); border: 1px solid var(--stroke-hairline); z-index: 999; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="device">
+    <div class="island"></div>
+
+    <!-- REGION 1: Nav bar -->
+    <div class="nav">
+      <div class="close">✕</div>
+      <div class="divider"></div>
+      <div class="project">Summer Edit <span class="chev">▾</span></div>
+      <div class="ellipsis">⋯</div>
+      <div class="reso">2K</div>
+      <div class="cta">Export</div>
+    </div>
+
+    <!-- REGION 2: Preview -->
+    <div class="preview">
+      <div class="aspect">16:9</div>
+      <div class="reso-badge">2K · 60</div>
+      <div class="time-chip"><span class="dot"></span> 00:04:12</div>
+      <div class="fullscreen">⛶</div>
+    </div>
+
+    <!-- REGION 3: Transport row -->
+    <div class="transport">
+      <div class="iconbtn">↩</div>
+      <div class="iconbtn">↪</div>
+      <div></div>
+      <div class="iconbtn">⏮</div>
+      <div class="play">▶</div>
+      <div class="iconbtn">⏭</div>
+      <div></div>
+      <div class="timecode">
+        <span class="current">00:04:12</span>
+        <span class="total">/ 00:42:18</span>
+      </div>
+    </div>
+
+    <!-- REGION 4: Timeline glass card -->
+    <div class="timeline">
+      <div class="ruler">
+        <span>0:00</span><span>0:05</span><span>0:10</span><span>0:15</span><span>0:20</span><span>0:25</span>
+      </div>
+      <div class="tracks">
+        <div class="lane">
+          <div class="clip v1"><div class="name">beach_01.mov</div><div class="dur">00:08</div></div>
+          <div class="clip v1 selected"><div class="name">sunset.mov</div><div class="dur">00:14</div></div>
+        </div>
+        <div class="lane">
+          <div class="clip v2"><div class="name">Title overlay</div><div class="dur">00:04</div></div>
+          <div class="spacer"></div>
+          <div class="clip v2"><div class="name">Logo fade</div><div class="dur">00:03</div></div>
+        </div>
+        <div class="lane">
+          <div class="clip audio"><div class="name">♫ music_bed.m4a</div><div class="dur">00:22</div></div>
+        </div>
+        <div class="playhead"><div class="chip">00:04:12</div></div>
+      </div>
+    </div>
+
+    <!-- REGION 5: Toolbar -->
+    <div class="toolbar">
+      <div class="tools">
+        <div class="tool"><div class="glyph">✂︎</div>Split</div>
+        <div class="tool active"><div class="glyph">⬎</div>Trim</div>
+        <div class="tool"><div class="glyph">⎌</div>Speed</div>
+        <div class="tool"><div class="glyph">🔊</div>Volume</div>
+        <div class="tool"><div class="glyph">🗑</div>Delete</div>
+        <div class="tool"><div class="glyph">▤</div>Tracks</div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">
+          <div class="glyph">⚙︎</div>
+          <div class="label">Edit</div>
+          <div class="pill"></div>
+        </div>
+        <div class="tab">
+          <div class="glyph">🔊</div>
+          <div class="label">Audio</div>
+          <div class="pill"></div>
+        </div>
+        <div class="tab">
+          <div class="glyph">T</div>
+          <div class="label">Text</div>
+          <div class="pill"></div>
+        </div>
+        <div class="tab">
+          <div class="glyph">✨</div>
+          <div class="label">FX</div>
+          <div class="pill"></div>
+        </div>
+        <div class="tab">
+          <div class="glyph">🎨</div>
+          <div class="label">Color</div>
+          <div class="pill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">Editor — iPhone portrait · approved design per §3.1</div>
+</div>
+
+</body>
+</html>
