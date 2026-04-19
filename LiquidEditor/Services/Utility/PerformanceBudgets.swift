@@ -139,8 +139,9 @@ struct PerformanceBudgets: Sendable {
     static func beginRegion(_ region: Region) -> RegionState {
         let signposter = region.signposter
         let state = signposter.beginInterval(
-            region.rawValue,
-            id: signposter.makeSignpostID()
+            "region",
+            id: signposter.makeSignpostID(),
+            "region=\(region.rawValue)"
         )
         return RegionState(
             region: region,
@@ -151,7 +152,7 @@ struct PerformanceBudgets: Sendable {
 
     /// End a timed region, emitting `endInterval` and asserting the budget.
     static func endRegion(_ region: Region, state: RegionState) {
-        region.signposter.endInterval(region.rawValue, state.intervalState)
+        region.signposter.endInterval("region", state.intervalState, "region=\(region.rawValue)")
         let elapsed = ContinuousClock.now - state.start
         let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
         assertBudget(seconds, name: region.rawValue, budget: region.budget)

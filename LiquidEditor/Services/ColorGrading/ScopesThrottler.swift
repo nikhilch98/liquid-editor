@@ -58,7 +58,7 @@ final class ScopesThrottler {
     // MARK: - Observation
 
     /// Retained observer token for `NSProcessInfoThermalStateDidChange`.
-    private var observer: NSObjectProtocol?
+    private nonisolated(unsafe) var observer: NSObjectProtocol?
 
     // MARK: - Lifecycle
 
