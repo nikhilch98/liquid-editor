@@ -24,100 +24,58 @@ import SwiftUI
 /// ```
 enum LiquidColors {
 
-    // MARK: - Backgrounds
+    // MARK: - Legacy aliases (premium-redesign migration)
+    //
+    // The following top-level tokens used to map to iOS system colors
+    // (systemBackground, .label, .systemRed, etc.) so views rendered
+    // with iOS dynamic colors regardless of brand palette. The premium
+    // 2026-04-18 redesign locks the app to a dark-only, near-black +
+    // bone-white + amber palette (see `Canvas`, `Text`, `Accent` below),
+    // but ~50 view files still reference the legacy names. Rather than
+    // rewrite every call-site at once, each legacy token now aliases
+    // its premium counterpart so the brand palette renders app-wide.
 
-    /// Primary background color. Adapts to light/dark mode.
-    static let background = Color(.systemBackground)
+    // Backgrounds
+    static let background = Canvas.base                              // #07070A
+    static let secondaryBackground = Canvas.raised                   // #0F0F12
+    static let tertiaryBackground = Canvas.elev                      // #1A1A1F
 
-    /// Secondary background for grouped content.
-    static let secondaryBackground = Color(.secondarySystemBackground)
+    // Surfaces
+    static let surface = Canvas.raised
+    static let glassSurface = Canvas.raised.opacity(0.70)
+    static let glassSurfaceProminent = Canvas.raised.opacity(0.85)
+    static let glassSurfaceSubtle = Canvas.raised.opacity(0.50)
 
-    /// Tertiary background for nested grouped content.
-    static let tertiaryBackground = Color(.tertiarySystemBackground)
+    // Brand / Accent
+    static let primary = Accent.amber
+    static let secondary = Text.secondary
+    static let accent = Accent.amber
 
-    // MARK: - Surfaces
+    // Text
+    static let textPrimary = Text.primary
+    static let textSecondary = Text.secondary
+    static let textTertiary = Text.tertiary
+    static let textQuaternary = Text.tertiary.opacity(0.60)
 
-    /// Elevated surface color for cards and panels.
-    static let surface = Color(.secondarySystemGroupedBackground)
+    // Separators (spec §2.1: hairline stroke / prominent stroke)
+    static let separator = Color.white.opacity(0.06)
+    static let separatorOpaque = Color.white.opacity(0.12)
 
-    /// Glass surface for Liquid Glass components.
-    /// Uses a translucent system material appearance.
-    static let glassSurface = Color(.systemBackground).opacity(0.7)
+    // Semantic Colors
+    static let error = Accent.destructive                            // #E5534A
+    static let success = Accent.success                              // #6BCB77
+    static let warning = Accent.warning                              // #E5A14A
+    static let info = Accent.amber
 
-    /// Glass surface with stronger opacity for prominent elements.
-    static let glassSurfaceProminent = Color(.systemBackground).opacity(0.85)
+    // Fill Colors
+    static let fillPrimary = Canvas.raised
+    static let fillSecondary = Canvas.elev
+    static let fillTertiary = Canvas.elev.opacity(0.80)
+    static let fillQuaternary = Canvas.elev.opacity(0.50)
 
-    /// Glass surface with lighter opacity for subtle elements.
-    static let glassSurfaceSubtle = Color(.systemBackground).opacity(0.5)
-
-    // MARK: - Brand / Accent
-
-    /// Primary brand color.
-    static let primary = Color(.systemBlue)
-
-    /// Secondary brand color.
-    static let secondary = Color(.systemIndigo)
-
-    /// Accent color for interactive elements and highlights.
-    static let accent = Color(.tintColor)
-
-    // MARK: - Text
-
-    /// Primary text color for headings and body text.
-    static let textPrimary = Color(.label)
-
-    /// Secondary text color for subtitles and descriptions.
-    static let textSecondary = Color(.secondaryLabel)
-
-    /// Tertiary text color for placeholders and hints.
-    static let textTertiary = Color(.tertiaryLabel)
-
-    /// Quaternary text color for disabled or very subtle text.
-    static let textQuaternary = Color(.quaternaryLabel)
-
-    // MARK: - Separators
-
-    /// Standard separator color for dividers and borders.
-    static let separator = Color(.separator)
-
-    /// Opaque separator for contexts where transparency is undesirable.
-    static let separatorOpaque = Color(.opaqueSeparator)
-
-    // MARK: - Semantic Colors
-
-    /// Error state color.
-    static let error = Color(.systemRed)
-
-    /// Success state color.
-    static let success = Color(.systemGreen)
-
-    /// Warning state color.
-    static let warning = Color(.systemOrange)
-
-    /// Informational state color.
-    static let info = Color(.systemBlue)
-
-    // MARK: - Fill Colors
-
-    /// Primary fill for large shapes.
-    static let fillPrimary = Color(.systemFill)
-
-    /// Secondary fill for medium-sized shapes.
-    static let fillSecondary = Color(.secondarySystemFill)
-
-    /// Tertiary fill for small shapes.
-    static let fillTertiary = Color(.tertiarySystemFill)
-
-    /// Quaternary fill for very subtle elements.
-    static let fillQuaternary = Color(.quaternarySystemFill)
-
-    // MARK: - Glass Border
-
-    /// Subtle glass border for Liquid Glass components.
-    static let glassBorder = Color(.separator).opacity(0.2)
-
-    /// Prominent glass border for focused/active elements.
-    static let glassBorderProminent = Color(.separator).opacity(0.4)
+    // Glass Border (routes to hairline/prominent stroke tokens)
+    static let glassBorder = Color.white.opacity(0.06)
+    static let glassBorderProminent = Color.white.opacity(0.12)
 
     // MARK: - Timeline Colors
 

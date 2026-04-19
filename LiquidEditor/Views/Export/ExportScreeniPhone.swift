@@ -176,7 +176,7 @@ struct ExportScreeniPhone: View {
                     .padding(.bottom, LiquidSpacing.lg)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(LiquidColors.background.ignoresSafeArea())
+            .background(LiquidColors.Canvas.base.ignoresSafeArea())
         }
         .navigationBarHidden(true)
     }
@@ -188,10 +188,10 @@ struct ExportScreeniPhone: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Export")
                     .font(LiquidTypography.title2)
-                    .foregroundStyle(LiquidColors.textPrimary)
+                    .foregroundStyle(LiquidColors.Text.primary)
                 Text(stateSubtitle)
                     .font(LiquidTypography.footnote)
-                    .foregroundStyle(LiquidColors.textSecondary)
+                    .foregroundStyle(LiquidColors.Text.secondary)
             }
 
             Spacer()
@@ -201,7 +201,7 @@ struct ExportScreeniPhone: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(LiquidColors.textSecondary)
+                    .foregroundStyle(LiquidColors.Text.secondary)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close export")
@@ -223,7 +223,7 @@ struct ExportScreeniPhone: View {
     private func previewSection(height: CGFloat) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: Self.previewCornerRadius, style: .continuous)
-                .fill(LiquidColors.surface)
+                .fill(LiquidColors.Canvas.raised)
 
             if let thumb = selection.thumbnail {
                 Image(uiImage: thumb)
@@ -238,10 +238,10 @@ struct ExportScreeniPhone: View {
                 VStack(spacing: LiquidSpacing.sm) {
                     Image(systemName: "film")
                         .font(.system(size: 48, weight: .medium))
-                        .foregroundStyle(LiquidColors.textTertiary)
+                        .foregroundStyle(LiquidColors.Text.tertiary)
                     Text("Project Preview")
                         .font(LiquidTypography.footnote)
-                        .foregroundStyle(LiquidColors.textSecondary)
+                        .foregroundStyle(LiquidColors.Text.secondary)
                 }
             }
 
@@ -265,7 +265,7 @@ struct ExportScreeniPhone: View {
         .frame(height: height)
         .overlay(
             RoundedRectangle(cornerRadius: Self.previewCornerRadius, style: .continuous)
-                .stroke(LiquidColors.glassBorder, lineWidth: 1)
+                .stroke(LiquidStroke.hairlineColor, lineWidth: LiquidStroke.hairlineWidth)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Project preview")
@@ -294,7 +294,7 @@ struct ExportScreeniPhone: View {
                     .foregroundStyle(category.accentColor)
                 Text(category.displayName)
                     .font(LiquidTypography.subheadlineSemibold)
-                    .foregroundStyle(LiquidColors.textPrimary)
+                    .foregroundStyle(LiquidColors.Text.primary)
             }
             .padding(.leading, LiquidSpacing.xs)
 
@@ -346,7 +346,7 @@ struct ExportScreeniPhone: View {
                     .frame(height: LiquidSpacing.buttonHeightCompact)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(LiquidColors.textSecondary)
+            .foregroundStyle(LiquidColors.Text.secondary)
         }
     }
 
