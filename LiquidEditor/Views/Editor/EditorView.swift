@@ -644,10 +644,17 @@ struct EditorView: View {
 
     @ViewBuilder
     private var exportSheet: some View {
-        ExportSheet(
-            estimatedDurationSeconds: Double(viewModel.totalDuration) / 1_000_000.0,
-            thumbnailImage: exportThumbnail
-        )
+        // Premium redesign (S2-8 / S2-9): route to ExportScreeniPhone on
+        // compact form factors and ExportScreeniPad on regular-width
+        // devices. Both share ExportPresetSelectionViewModel.
+        GeometryReader { proxy in
+            let isPad = FormFactor(canvasSize: proxy.size) == .regular
+            if isPad {
+                ExportScreeniPad()
+            } else {
+                ExportScreeniPhone()
+            }
+        }
     }
 
     @ViewBuilder
