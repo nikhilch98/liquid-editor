@@ -168,12 +168,18 @@ struct ToolStripContent: View {
                     .lineLimit(1)
             }
             .foregroundStyle(foregroundColor(for: tool))
-            .frame(width: 60)
-            .padding(.vertical, 6)
+            .frame(width: 64)
+            .padding(.vertical, 8)
             .background(
-                tool.isActive
-                ? RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.15))
-                : nil
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(tool.isActive
+                          ? LiquidColors.Accent.amber.opacity(0.10)
+                          : Color.clear)
+            )
+            .overlay(
+                // Spec §2.5: active = 1px amber border + 10% amber fill + amber label.
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(tool.isActive ? LiquidColors.Accent.amber : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -181,11 +187,13 @@ struct ToolStripContent: View {
         .accessibilityAddTraits(tool.isActive ? .isSelected : [])
     }
 
-    /// Color logic mirrors legacy `EditorToolbar.toolButtonColor`.
+    /// Foreground colors aligned with the premium-redesign amber accent
+    /// system (spec §2.1 / §2.5). Destructive uses Accent.destructive
+    /// (#E5534A), not systemRed.
     private func foregroundColor(for tool: ToolStripButton) -> Color {
-        if tool.isDestructive { return LiquidColors.error }
-        if tool.isActive { return .orange }
-        return LiquidColors.textSecondary
+        if tool.isDestructive { return LiquidColors.Accent.destructive }
+        if tool.isActive { return LiquidColors.Accent.amber }
+        return LiquidColors.Text.secondary
     }
 }
 

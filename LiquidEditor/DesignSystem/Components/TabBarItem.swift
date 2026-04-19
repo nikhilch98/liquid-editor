@@ -21,15 +21,24 @@ struct TabBarItem: View {
             HapticService.shared.play(.selection)
             action()
         }) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: systemName)
-                    .font(.system(size: 24, weight: .regular))
+                    .font(.system(size: 22, weight: .regular))
                     .foregroundStyle(
                         isActive ? LiquidColors.Accent.amber : LiquidColors.Text.secondary
                     )
+                // Visible text label matching iOS tab-bar convention.
+                // Spec §3.1 implies a labelled shelf; icon-only reads as
+                // unfinished.
+                Text(label)
+                    .font(.system(size: 10, weight: isActive ? .semibold : .regular))
+                    .foregroundStyle(
+                        isActive ? LiquidColors.Accent.amber : LiquidColors.Text.secondary
+                    )
+                    .lineLimit(1)
                 Capsule()
                     .fill(LiquidColors.Accent.amber)
-                    .frame(width: isActive ? 16 : 0, height: 3)
+                    .frame(width: isActive ? 16 : 0, height: 2)
                     .animation(.liquid(LiquidMotion.bounce, reduceMotion: reduceMotion),
                                value: isActive)
             }
