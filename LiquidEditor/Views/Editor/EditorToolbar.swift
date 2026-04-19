@@ -11,6 +11,42 @@
 
 import SwiftUI
 
+// MARK: - EditorTabID Display
+
+/// Premium redesign tab metadata, matched to the spec §3.1 tab set:
+/// Edit / Audio / Text / FX / Color.
+private extension EditorTabID {
+    var displayName: String {
+        switch self {
+        case .edit:  return "Edit"
+        case .audio: return "Audio"
+        case .text:  return "Text"
+        case .fx:    return "FX"
+        case .color: return "Color"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .edit:  return "slider.horizontal.3"
+        case .audio: return "speaker.wave.2"
+        case .text:  return "textformat"
+        case .fx:    return "sparkles"
+        case .color: return "paintpalette"
+        }
+    }
+
+    var activeIconName: String {
+        switch self {
+        case .edit:  return "slider.horizontal.3"
+        case .audio: return "speaker.wave.2.fill"
+        case .text:  return "textformat"
+        case .fx:    return "sparkles"
+        case .color: return "paintpalette.fill"
+        }
+    }
+}
+
 // MARK: - EditorToolbar
 
 /// Bottom toolbar with tabs and context-sensitive tool buttons.
@@ -73,14 +109,20 @@ struct EditorToolbar: View {
 
     private var tabBar: some View {
         HStack(spacing: 0) {
-            ForEach(EditorTab.allCases, id: \.self) { tab in
+            ForEach(EditorTabID.allCases, id: \.self) { tab in
                 TabBarItem(
-                    systemName: viewModel.activeTab == tab ? tab.activeIconName : tab.iconName,
+                    systemName: viewModel.selectedTab == tab ? tab.activeIconName : tab.iconName,
                     label: tab.displayName,
-                    isActive: viewModel.activeTab == tab
+                    isActive: viewModel.selectedTab == tab
                 ) {
+                    HapticService.shared.trigger(.tabSwitch)
                     withAnimation(.liquid(LiquidMotion.smooth, reduceMotion: reduceMotion)) {
-                        viewModel.activeTab = tab
+                        viewModel.selectedTab = tab
+                        // Keep legacy activeTab in sync for any remaining
+                        // call-sites that still read `activeTab`.
+                        if let legacy = EditorTab(rawValue: tab.rawValue) {
+                            viewModel.activeTab = legacy
+                        }
                     }
                 }
             }
@@ -93,25 +135,9 @@ struct EditorToolbar: View {
 
     @ViewBuilder
     private var toolButtonsForActiveTab: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: LiquidSpacing.xs) {
-                switch viewModel.activeTab {
-                case .edit:
-                    editTabTools
-                case .fx:
-                    fxTabTools
-                case .overlay:
-                    overlayTabTools
-                case .audio:
-                    audioTabTools
-                case .smart:
-                    smartTabTools
-                }
-            }
-            .padding(.horizontal, LiquidSpacing.xs)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(viewModel.activeTab.displayName) tools")
+        // Premium redesign: swap by `selectedTab` (EditorTabID) via
+        // currentTabTools on the view model.
+        ToolStripContent(viewModel: viewModel)
     }
 
     // MARK: - Edit Tab Tools
