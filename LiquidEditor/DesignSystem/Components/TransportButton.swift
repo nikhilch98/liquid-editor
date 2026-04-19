@@ -49,6 +49,13 @@ struct TransportButton: View {
                         lineWidth: LiquidStroke.hairlineWidth
                     )
                 )
+                // Spec §3.1: primary play button has amber glow.
+                .shadow(
+                    color: kind == .primary ? LiquidColors.Accent.amberGlow : .clear,
+                    radius: kind == .primary ? 12 : 0,
+                    x: 0,
+                    y: 0
+                )
                 .scaleEffect(pressed ? 0.94 : 1)
                 .animation(.liquid(LiquidMotion.snap, reduceMotion: reduceMotion), value: pressed)
         }
