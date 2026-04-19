@@ -38,6 +38,19 @@ struct LiquidEditorApp: App {
     /// Navigation coordinator for app-wide routing.
     @State private var coordinator = AppCoordinator()
 
+    /// OS17-3: URL-scheme + Universal Links router. The scene's
+    /// `.onOpenURL` handler forwards incoming URLs here; the coordinator
+    /// reacts to `pendingRequest` changes below.
+    @State private var deepLinkRouter = DeepLinkRouter()
+
+    /// OS17-4: Spotlight index. Retained here so its debounce timer
+    /// survives across scene transitions.
+    @State private var spotlightIndexer = SpotlightIndexer()
+
+    /// F6-27: App-review prompter. Stamps install date on first init
+    /// and exposes `recordSuccessfulExport()` to the export flow.
+    @State private var appReviewPrompter = AppReviewPrompter()
+
     /// Settings view model, shared so onboarding completion persists.
     @State private var settingsViewModel: SettingsViewModel?
 
@@ -75,6 +88,28 @@ struct LiquidEditorApp: App {
                 CrashReporter.shared.start()
                 CrashReporter.shared.leaveBreadcrumb("App launched")
                 checkOnboarding()
+            }
+            // OS17-3: Custom URL scheme (liquideditor://). Forwards to
+            // DeepLinkRouter; the change handler below routes through
+            // the coordinator.
+            .onOpenURL { url in
+                deepLinkRouter.handle(url)
+            }
+            .onChange(of: deepLinkRouter.pendingRequest) {
+                guard let request = deepLinkRouter.pendingRequest else { return }
+                switch request {
+                case .openProject(let id):
+                    coordinator.navigateToEditor(projectId: id)
+                case .newFromTemplate:
+                    // TODO: wire template-based new-project flow.
+                    break
+                case .importURL:
+                    // TODO: present URL import sheet with url prefilled.
+                    break
+                case .unknown:
+                    break
+                }
+                deepLinkRouter.clear()
             }
             .fullScreenCover(isPresented: $showOnboarding) {
                 OnboardingView {
